@@ -6,7 +6,7 @@ import Script from "next/script";
 import CustomAutumnProvider from "@/lib/autumn-provider";
 
 export const metadata: Metadata = {
-  title: "ParkEase KA - Smart Parking Management System",
+  title: "NammaParking - Smart Parking Management System",
   description: "Find and book parking spaces across Karnataka. Real-time availability, secure payments, and verified spaces in Bangalore, Mysore, Mangalore, and more.",
 };
 
