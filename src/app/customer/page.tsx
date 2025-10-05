@@ -2,6 +2,7 @@
 
 import Navigation from "@/components/Navigation";
 import WalletCard from "@/components/WalletCard";
+import AchievementsCard from "@/components/AchievementsCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -456,9 +457,10 @@ export default function CustomerDashboard() {
           <p className="text-muted-foreground">Search and book parking spaces across Karnataka</p>
         </div>
 
-        {/* Wallet Card */}
-        <div className="mb-8">
+        {/* Wallet & Achievements Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <WalletCard />
+          <AchievementsCard />
         </div>
 
         {/* Search Bar */}

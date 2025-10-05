@@ -134,3 +134,40 @@ export const walletTransactions = sqliteTable('wallet_transactions', {
   status: text('status').notNull().default('completed'),
   createdAt: text('created_at').notNull(),
 });
+
+// Add gamification tables
+export const userPoints = sqliteTable('user_points', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }).unique(),
+  totalPoints: integer('total_points').notNull().default(0),
+  level: integer('level').notNull().default(1),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const achievements = sqliteTable('achievements', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  description: text('description').notNull(),
+  icon: text('icon').notNull(),
+  pointsRequired: integer('points_required').notNull(),
+  category: text('category').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+export const userAchievements = sqliteTable('user_achievements', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  achievementId: integer('achievement_id').notNull().references(() => achievements.id, { onDelete: 'cascade' }),
+  unlockedAt: text('unlocked_at').notNull(),
+  isNew: integer('is_new', { mode: 'boolean' }).notNull().default(true),
+});
+
+export const pointsHistory = sqliteTable('points_history', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  points: integer('points').notNull(),
+  action: text('action').notNull(),
+  bookingId: integer('booking_id').references(() => bookings.id, { onDelete: 'set null' }),
+  createdAt: text('created_at').notNull(),
+});

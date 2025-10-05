@@ -14,16 +14,79 @@ import {
   Receipt,
   Mail,
   MessageCircle,
-  Calendar
+  Calendar,
+  Trophy,
+  Star
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useSession } from "@/lib/auth-client";
 
 function BookingConfirmationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
   const [booking, setBooking] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [pointsAwarded, setPointsAwarded] = useState(false);
+
+  // Award points for booking
+  const awardBookingPoints = async (bookingId: number) => {
+    if (!session?.user?.id || pointsAwarded) return;
+
+    try {
+      const token = localStorage.getItem("bearer_token");
+      
+      // Add points for booking
+      const pointsResponse = await fetch("/api/gamification/points/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          user_id: session.user.id,
+          points: 50,
+          action: "booking_completed",
+          booking_id: bookingId,
+        }),
+      });
+
+      if (pointsResponse.ok) {
+        const pointsData = await pointsResponse.json();
+        
+        // Check for new achievements
+        const achievementsResponse = await fetch("/api/gamification/achievements/check", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            user_id: session.user.id,
+          }),
+        });
+
+        if (achievementsResponse.ok) {
+          const achievementsData = await achievementsResponse.json();
+          
+          // Show success notification
+          if (achievementsData.newlyUnlocked && achievementsData.newlyUnlocked.length > 0) {
+            toast.success(
+              `🎉 +50 points! You unlocked ${achievementsData.newlyUnlocked.length} new achievement(s)!`,
+              { duration: 5000 }
+            );
+          } else {
+            toast.success("🎊 +50 points earned for booking!", { duration: 4000 });
+          }
+          
+          setPointsAwarded(true);
+        }
+      }
+    } catch (error) {
+      console.error("Error awarding points:", error);
+    }
+  };
 
   useEffect(() => {
     const bookingId = searchParams.get("bookingId");
@@ -49,6 +112,11 @@ function BookingConfirmationContent() {
 
         const data = await response.json();
         setBooking(data);
+        
+        // Award points after booking is fetched
+        if (session?.user?.id && data.id) {
+          awardBookingPoints(data.id);
+        }
       } catch (error) {
         console.error("Error fetching booking:", error);
         toast.error("Failed to load booking details");
@@ -59,7 +127,7 @@ function BookingConfirmationContent() {
     };
 
     fetchBooking();
-  }, [searchParams, router]);
+  }, [searchParams, router, session?.user?.id]);
 
   const handleNavigate = () => {
     if (!booking) return;

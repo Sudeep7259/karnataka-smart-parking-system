@@ -121,7 +121,7 @@ export default function Home() {
       <section className="py-20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-black mb-4">WHY CHOOSE NMMAPARKING?</h2>
+            <h2 className="text-3xl md:text-4xl font-black mb-4">WHY CHOOSE NAMMAPARKING?</h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               Experience hassle-free parking with our comprehensive features designed for convenience
             </p>
@@ -203,7 +203,7 @@ export default function Home() {
             READY TO FIND YOUR PERFECT PARKING SPACE?
           </h2>
           <p className="text-lg mb-8 max-w-2xl mx-auto">
-            Join thousands of satisfied users who trust NmmaParking for their parking needs
+            Join thousands of satisfied users who trust NammaParking for their parking needs
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" variant="secondary" asChild className="text-base px-8 border-2 border-white bg-white text-black">
@@ -229,7 +229,7 @@ export default function Home() {
                 <div className="bg-black text-white p-2">
                   <Car className="h-5 w-5" />
                 </div>
-                <span>NMMAPARKING</span>
+                <span>NAMMAPARKING</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 Karnataka's trusted parking management solution
@@ -264,7 +264,7 @@ export default function Home() {
           </div>
           
           <div className="border-t-2 border-black mt-8 pt-8 text-center text-sm text-muted-foreground">
-            <p>© 2024 NmmaParking. All rights reserved.</p>
+            <p>© 2024 NammaParking. All rights reserved.</p>
           </div>
         </div>
       </footer>

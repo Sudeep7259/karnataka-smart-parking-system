@@ -8,9 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, Plus, Loader2, IndianRupee, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Wallet, Plus, Loader2, IndianRupee, ArrowUpRight, ArrowDownRight, QrCode } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
+import QRCode from "qrcode";
+import Image from "next/image";
 
 interface WalletData {
   id: number;
@@ -42,6 +44,8 @@ export default function WalletCard() {
   const [amount, setAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
+  const [showQrCode, setShowQrCode] = useState(false);
 
   // Fetch wallet data
   const fetchWallet = async () => {
@@ -133,6 +137,30 @@ export default function WalletCard() {
     }
   };
 
+  // Generate QR code for payment
+  const generateQRCode = async (paymentAmount: number) => {
+    try {
+      // Create UPI payment string
+      const upiString = `upi://pay?pa=nammaparking@upi&pn=NammaParking&am=${paymentAmount}&cu=INR&tn=Add money to wallet`;
+      
+      // Generate QR code
+      const qrDataUrl = await QRCode.toDataURL(upiString, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: "#000000",
+          light: "#FFFFFF",
+        },
+      });
+      
+      setQrCodeUrl(qrDataUrl);
+      setShowQrCode(true);
+    } catch (error) {
+      console.error("Error generating QR code:", error);
+      toast.error("Failed to generate QR code");
+    }
+  };
+
   // Add money to wallet
   const handleAddMoney = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,6 +172,16 @@ export default function WalletCard() {
       return;
     }
 
+    // Show QR code for payment
+    await generateQRCode(amountNum);
+  };
+
+  // Confirm payment after scanning QR code
+  const confirmPayment = async () => {
+    if (!session?.user?.id) return;
+
+    const amountNum = parseFloat(amount);
+    
     try {
       setIsSubmitting(true);
       const token = localStorage.getItem("bearer_token");
@@ -156,7 +194,7 @@ export default function WalletCard() {
         body: JSON.stringify({
           user_id: session.user.id,
           amount: amountNum,
-          description: "Money added to wallet",
+          description: "Money added to wallet via QR",
         }),
       });
 
@@ -168,6 +206,7 @@ export default function WalletCard() {
       setWallet(data.wallet);
       toast.success(`Successfully added ₹${amountNum} to wallet`);
       setAmount("");
+      setShowQrCode(false);
       setIsAddMoneyOpen(false);
       fetchTransactions();
     } catch (error) {
@@ -229,7 +268,7 @@ export default function WalletCard() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-black dark:bg-white text-white dark:text-black p-2">
+            <div className="bg-primary text-primary-foreground p-2 rounded-full">
               <Wallet className="h-5 w-5" />
             </div>
             <div>
@@ -237,77 +276,137 @@ export default function WalletCard() {
               <CardDescription>Quick one-click booking</CardDescription>
             </div>
           </div>
-          <Dialog open={isAddMoneyOpen} onOpenChange={setIsAddMoneyOpen}>
+          <Dialog open={isAddMoneyOpen} onOpenChange={(open) => {
+            setIsAddMoneyOpen(open);
+            if (!open) {
+              setShowQrCode(false);
+              setAmount("");
+            }
+          }}>
             <DialogTrigger asChild>
-              <Button size="sm" className="border-2 border-black dark:border-white">
+              <Button size="sm" className="bg-primary hover:bg-primary/90">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Money
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="border-2 border-primary">
               <DialogHeader>
-                <DialogTitle>Add Money to Wallet</DialogTitle>
+                <DialogTitle className="flex items-center gap-2">
+                  <QrCode className="h-5 w-5" />
+                  Add Money to Wallet
+                </DialogTitle>
                 <DialogDescription>
-                  Top up your wallet for quick parking bookings
+                  {showQrCode 
+                    ? "Scan QR code to complete payment" 
+                    : "Enter amount and generate QR code for payment"}
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleAddMoney} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="amount">Amount (₹)</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    placeholder="Enter amount"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    min="1"
-                    step="1"
-                    required
-                  />
-                </div>
-                <div className="flex gap-2">
-                  {[100, 500, 1000, 2000].map((preset) => (
+              
+              {!showQrCode ? (
+                <form onSubmit={handleAddMoney} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="amount">Amount (₹)</Label>
+                    <Input
+                      id="amount"
+                      type="number"
+                      placeholder="Enter amount"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      min="1"
+                      step="1"
+                      required
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    {[100, 500, 1000, 2000].map((preset) => (
+                      <Button
+                        key={preset}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAmount(preset.toString())}
+                        className="flex-1 border-2"
+                      >
+                        ₹{preset}
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="flex gap-3 pt-4">
                     <Button
-                      key={preset}
                       type="button"
                       variant="outline"
-                      size="sm"
-                      onClick={() => setAmount(preset.toString())}
-                      className="flex-1 border-2 border-black dark:border-white"
+                      className="flex-1"
+                      onClick={() => setIsAddMoneyOpen(false)}
                     >
-                      ₹{preset}
+                      Cancel
                     </Button>
-                  ))}
+                    <Button type="submit" className="flex-1 bg-primary">
+                      <QrCode className="mr-2 h-4 w-4" />
+                      Generate QR
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-muted p-6 rounded-lg flex flex-col items-center gap-4">
+                    <div className="bg-white p-4 rounded-lg">
+                      <Image
+                        src={qrCodeUrl}
+                        alt="Payment QR Code"
+                        width={300}
+                        height={300}
+                      />
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-black text-primary">₹{amount}</div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Scan with any UPI app to pay
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-accent/20 p-3 rounded-lg border-2 border-accent">
+                    <p className="text-sm font-medium text-center">
+                      💡 After payment, click "Payment Complete" below
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        setShowQrCode(false);
+                        setAmount("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={confirmPayment} 
+                      className="flex-1 bg-primary" 
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        "Payment Complete"
+                      )}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-3 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => setIsAddMoneyOpen(false)}
-                    disabled={isSubmitting}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="flex-1" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      "Add Money"
-                    )}
-                  </Button>
-                </div>
-              </form>
+              )}
             </DialogContent>
           </Dialog>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Wallet Balance */}
-        <div className="bg-black dark:bg-white text-white dark:text-black p-6 rounded-lg">
+        <div className="bg-primary text-primary-foreground p-6 rounded-lg">
           <div className="text-sm opacity-80 mb-2">Available Balance</div>
           <div className="text-4xl font-black">₹{wallet?.balance.toFixed(2) || "0.00"}</div>
         </div>
