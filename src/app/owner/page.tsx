@@ -27,7 +27,8 @@ import {
   XCircle,
   Loader2,
   Upload,
-  X as XIcon
+  X as XIcon,
+  Image as ImageIcon
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSession } from "@/lib/auth-client";
@@ -99,6 +100,7 @@ export default function OwnerPortal() {
   const [isLoadingBookings, setIsLoadingBookings] = useState(true);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
 
   // Redirect if not authenticated
@@ -229,10 +231,17 @@ export default function OwnerPortal() {
     }
   };
 
-  // Handle image URL change for preview
-  const handleImageUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const url = e.target.value;
-    setImagePreview(url);
+  // Handle image file change for preview
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // Handle form submission for new parking space
@@ -251,6 +260,16 @@ export default function OwnerPortal() {
     if (formData.get("EV Charging")) features.push("EV Charging");
     if (formData.get("Valet Service")) features.push("Valet Service");
 
+    // Convert image to base64 if file exists
+    let imageBase64 = null;
+    if (imageFile) {
+      const reader = new FileReader();
+      imageBase64 = await new Promise<string>((resolve) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(imageFile);
+      });
+    }
+
     const payload = {
       ownerId: session.user.id,
       name: formData.get("spaceName") as string,
@@ -264,7 +283,7 @@ export default function OwnerPortal() {
       status: "pending",
       features: features.length > 0 ? features : null,
       description: formData.get("description") as string || null,
-      imageUrl: formData.get("imageUrl") as string || null,
+      imageUrl: imageBase64,
       peakHours: formData.get("peakHours") as string || null,
       peakPrice: formData.get("peakPrice") ? parseInt(formData.get("peakPrice") as string) : null,
       offPeakPrice: formData.get("offPeakPrice") ? parseInt(formData.get("offPeakPrice") as string) : null,
@@ -291,6 +310,7 @@ export default function OwnerPortal() {
       toast.success("Parking space submitted for approval");
       setIsAddSpaceOpen(false);
       setImagePreview("");
+      setImageFile(null);
       fetchSpaces();
       fetchStats();
       e.currentTarget.reset();
@@ -368,7 +388,10 @@ export default function OwnerPortal() {
           </div>
           <Dialog open={isAddSpaceOpen} onOpenChange={(open) => {
             setIsAddSpaceOpen(open);
-            if (!open) setImagePreview("");
+            if (!open) {
+              setImagePreview("");
+              setImageFile(null);
+            }
           }}>
             <DialogTrigger asChild>
               <Button size="lg">
@@ -429,19 +452,31 @@ export default function OwnerPortal() {
                   <div className="space-y-4 pt-4 border-t">
                     <div>
                       <h4 className="font-medium mb-3">Parking Space Image</h4>
-                      <p className="text-sm text-muted-foreground mb-4">Add a photo of your parking space</p>
+                      <p className="text-sm text-muted-foreground mb-4">Upload a photo of your parking space</p>
                     </div>
                     
                     <div>
-                      <Label htmlFor="imageUrl">Image URL</Label>
-                      <Input 
-                        id="imageUrl" 
-                        name="imageUrl" 
-                        type="url"
-                        placeholder="https://example.com/image.jpg"
-                        onChange={handleImageUrlChange}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">Enter a URL to an image of your parking space</p>
+                      <Label htmlFor="imageFile">Upload Image</Label>
+                      <div className="mt-2">
+                        <input
+                          id="imageFile"
+                          name="imageFile"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageFileChange}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => document.getElementById('imageFile')?.click()}
+                          className="w-full border-2 border-black dark:border-white"
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          {imageFile ? imageFile.name : 'Choose Image'}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Accepted formats: JPG, PNG, GIF (Max 5MB)</p>
                     </div>
 
                     {imagePreview && (
@@ -457,7 +492,8 @@ export default function OwnerPortal() {
                           className="absolute top-2 right-2"
                           onClick={() => {
                             setImagePreview("");
-                            const input = document.getElementById("imageUrl") as HTMLInputElement;
+                            setImageFile(null);
+                            const input = document.getElementById("imageFile") as HTMLInputElement;
                             if (input) input.value = "";
                           }}
                         >
@@ -536,6 +572,7 @@ export default function OwnerPortal() {
                   <Button type="button" variant="outline" className="flex-1" onClick={() => {
                     setIsAddSpaceOpen(false);
                     setImagePreview("");
+                    setImageFile(null);
                   }} disabled={isSubmitting}>
                     Cancel
                   </Button>

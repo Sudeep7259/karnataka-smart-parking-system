@@ -1,6 +1,7 @@
 "use client";
 
 import Navigation from "@/components/Navigation";
+import WalletCard from "@/components/WalletCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -453,6 +454,11 @@ export default function CustomerDashboard() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Find Parking Spaces</h1>
           <p className="text-muted-foreground">Search and book parking spaces across Karnataka</p>
+        </div>
+
+        {/* Wallet Card */}
+        <div className="mb-8">
+          <WalletCard />
         </div>
 
         {/* Search Bar */}

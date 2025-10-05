@@ -10,24 +10,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Car, Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
-
-type ErrorTypes = Partial<Record<keyof typeof authClient.$ERROR_CODES, string>>;
-
-const errorCodes = {
-  USER_ALREADY_EXISTS: "An account with this email already exists",
-} satisfies ErrorTypes;
-
-const getErrorMessage = (code: string) => {
-  if (code in errorCodes) {
-    return errorCodes[code as keyof typeof errorCodes];
-  }
-  return "Registration failed. Please try again.";
-};
+import { toast } from "sonner";
 
 export default function SignUpPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -38,65 +25,60 @@ export default function SignUpPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
 
-    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
+      toast.error("Passwords do not match");
       return;
     }
 
-    // Validate password length
     if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters long");
+      toast.error("Password must be at least 8 characters long");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const { error: signUpError } = await authClient.signUp.email({
+      const { error } = await authClient.signUp.email({
         email: formData.email,
         name: formData.name,
         password: formData.password,
       });
 
-      if (signUpError?.code) {
-        setError(getErrorMessage(signUpError.code));
+      if (error?.code) {
+        const errorMap: Record<string, string> = {
+          USER_ALREADY_EXISTS: "Email already registered",
+        };
+        toast.error(errorMap[error.code] || "Registration failed");
         setIsLoading(false);
         return;
       }
 
-      // Success - redirect to login with success message
-      router.push("/sign-in?registered=true");
+      toast.success("Account created successfully! Redirecting to login...");
+      
+      setTimeout(() => {
+        router.push("/sign-in?registered=true");
+      }, 1000);
     } catch (err) {
-      setError("An error occurred. Please try again.");
+      toast.error("An error occurred during registration");
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <div className="flex items-center justify-center mb-4">
-            <div className="bg-primary text-primary-foreground p-3 rounded-lg">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <Card className="w-full max-w-md manga-border">
+        <CardHeader className="text-center">
+          <div className="flex justify-center mb-4">
+            <div className="bg-black dark:bg-white text-white dark:text-black p-3">
               <Car className="h-8 w-8" />
             </div>
           </div>
-          <CardTitle className="text-2xl text-center">Create an account</CardTitle>
-          <CardDescription className="text-center">
-            Join ParkEase KA to find or list parking spaces
-          </CardDescription>
+          <CardTitle className="text-2xl font-black">NMMAPARKING</CardTitle>
+          <CardDescription>Create your account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
-                {error}
-              </div>
-            )}
-
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
               <Input
@@ -115,7 +97,7 @@ export default function SignUpPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder="name@example.com"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
@@ -128,16 +110,14 @@ export default function SignUpPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="••••••••"
+                placeholder="Create a strong password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
                 disabled={isLoading}
-                minLength={8}
+                autoComplete="off"
               />
-              <p className="text-xs text-muted-foreground">
-                Must be at least 8 characters long
-              </p>
+              <p className="text-xs text-muted-foreground">Must be at least 8 characters</p>
             </div>
 
             <div className="space-y-2">
@@ -145,11 +125,12 @@ export default function SignUpPage() {
               <Input
                 id="confirmPassword"
                 type="password"
-                placeholder="••••••••"
+                placeholder="Confirm your password"
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 required
                 disabled={isLoading}
+                autoComplete="off"
               />
             </div>
 
@@ -160,14 +141,14 @@ export default function SignUpPage() {
                 onValueChange={(value) => setFormData({ ...formData, role: value })}
                 disabled={isLoading}
               >
-                <div className="flex items-center space-x-2 border rounded-lg p-3">
+                <div className="flex items-center space-x-2 border-2 border-black dark:border-white rounded-lg p-3">
                   <RadioGroupItem value="customer" id="customer" />
                   <Label htmlFor="customer" className="cursor-pointer flex-1">
                     <div className="font-medium">Find parking spaces</div>
                     <div className="text-xs text-muted-foreground">Book parking as a customer</div>
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2 border rounded-lg p-3">
+                <div className="flex items-center space-x-2 border-2 border-black dark:border-white rounded-lg p-3">
                   <RadioGroupItem value="owner" id="owner" />
                   <Label htmlFor="owner" className="cursor-pointer flex-1">
                     <div className="font-medium">List my parking spaces</div>
@@ -177,34 +158,25 @@ export default function SignUpPage() {
               </RadioGroup>
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full border-2 border-black dark:border-white font-bold" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating account...
                 </>
               ) : (
-                "Create account"
+                "Create Account"
               )}
             </Button>
 
-            <div className="text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <Link href="/sign-in" className="text-primary hover:underline font-medium">
-                Sign in
-              </Link>
+            <div className="text-center text-sm">
+              <p className="text-muted-foreground">
+                Already have an account?{" "}
+                <Link href="/sign-in" className="font-bold text-black dark:text-white hover:underline">
+                  Sign in
+                </Link>
+              </p>
             </div>
-
-            <p className="text-xs text-center text-muted-foreground">
-              By signing up, you agree to our{" "}
-              <Link href="/terms" className="text-primary hover:underline">
-                Terms of Service
-              </Link>{" "}
-              and{" "}
-              <Link href="/privacy" className="text-primary hover:underline">
-                Privacy Policy
-              </Link>
-            </p>
           </form>
         </CardContent>
       </Card>

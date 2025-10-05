@@ -112,3 +112,25 @@ export const bookings = sqliteTable('bookings', {
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
+
+// Add e-wallet tables
+export const wallet = sqliteTable('wallet', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  balance: real('balance').notNull().default(0),
+  currency: text('currency').notNull().default('INR'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const walletTransactions = sqliteTable('wallet_transactions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  walletId: integer('wallet_id').notNull().references(() => wallet.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  type: text('type').notNull(),
+  amount: real('amount').notNull(),
+  description: text('description'),
+  bookingId: integer('booking_id').references(() => bookings.id, { onDelete: 'set null' }),
+  status: text('status').notNull().default('completed'),
+  createdAt: text('created_at').notNull(),
+});

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import Navigation from "@/components/Navigation";
+import WalletCard from "@/components/WalletCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Loader2, Mail, User as UserIcon, Calendar } from "lucide-react";
@@ -60,8 +61,8 @@ export default function ProfilePage() {
       <Navigation />
       
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto">
-          <h1 className="text-3xl font-bold mb-8">My Profile</h1>
+        <div className="max-w-3xl mx-auto space-y-8">
+          <h1 className="text-3xl font-bold">My Profile</h1>
 
           <Card>
             <CardHeader>
@@ -118,6 +119,8 @@ export default function ProfilePage() {
               </div>
             </CardContent>
           </Card>
+
+          <WalletCard />
         </div>
       </div>
     </div>
