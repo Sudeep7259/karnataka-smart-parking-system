@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
-import { Car, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -52,11 +53,15 @@ export default function LoginPage() {
       <Card className="w-full max-w-md manga-border">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="bg-black dark:bg-white text-white dark:text-black p-3">
-              <Car className="h-8 w-8" />
-            </div>
+            <Image 
+              src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/document-uploads/WhatsApp-Image-2025-10-05-at-12.25.40_4868263a-1759647674256.jpg"
+              alt="NammaParking Logo"
+              width={80}
+              height={80}
+              className="object-contain"
+            />
           </div>
-          <CardTitle className="text-2xl font-black">NMMAPARKING</CardTitle>
+          <CardTitle className="text-2xl font-black">NAMMAPARKING</CardTitle>
           <CardDescription>Sign in to your account</CardDescription>
         </CardHeader>
         <CardContent>
