@@ -227,6 +227,7 @@ export async function POST(request: NextRequest) {
       duration: duration.trim(),
       amount: parseInt(amount),
       status,
+      paymentStatus: 'pending',
       createdAt: currentTime,
       updatedAt: currentTime
     }).returning();

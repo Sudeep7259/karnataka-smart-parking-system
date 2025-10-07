@@ -109,6 +109,10 @@ export const bookings = sqliteTable('bookings', {
   status: text('status').default('pending'),
   cancellationReason: text('cancellation_reason'),
   modifiedAt: text('modified_at'),
+  paymentScreenshot: text('payment_screenshot'),
+  paymentStatus: text('payment_status').default('pending'),
+  verificationReason: text('verification_reason'),
+  transactionId: text('transaction_id'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });

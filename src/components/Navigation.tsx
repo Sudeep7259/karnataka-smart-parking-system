@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Car, Menu, X, Moon, Sun, User, LogOut } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Menu, X, User, LogOut } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
 import { authClient } from "@/lib/auth-client";
@@ -19,34 +19,8 @@ import Image from "next/image";
 
 export default function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const { data: session, isPending, refetch } = useSession();
   const router = useRouter();
-
-  // Load dark mode preference from localStorage
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme");
-    if (savedTheme === "dark") {
-      setIsDarkMode(true);
-      document.documentElement.classList.add("dark");
-    } else {
-      setIsDarkMode(false);
-      document.documentElement.classList.remove("dark");
-    }
-  }, []);
-
-  // Toggle dark mode
-  const toggleDarkMode = () => {
-    const newMode = !isDarkMode;
-    setIsDarkMode(newMode);
-    if (newMode) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-  };
 
   const handleSignOut = async () => {
     const { error } = await authClient.signOut();
@@ -98,16 +72,6 @@ export default function Navigation() {
 
           {/* Right side actions */}
           <div className="flex items-center gap-3">
-            {/* Dark Mode Toggle */}
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={toggleDarkMode}
-              className="border-2"
-            >
-              {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </Button>
-
             {/* Auth Buttons or Profile */}
             {isPending ? (
               <div className="w-20 h-9 bg-muted animate-pulse rounded" />

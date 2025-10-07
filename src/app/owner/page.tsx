@@ -28,7 +28,8 @@ import {
   Loader2,
   Upload,
   X as XIcon,
-  Image as ImageIcon
+  Image as ImageIcon,
+  AlertCircle
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSession } from "@/lib/auth-client";
@@ -102,6 +103,14 @@ export default function OwnerPortal() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
+  const [pendingPayments, setPendingPayments] = useState<any[]>([]);
+  const [isLoadingPendingPayments, setIsLoadingPendingPayments] = useState(true);
+  const [viewScreenshotDialog, setViewScreenshotDialog] = useState(false);
+  const [selectedScreenshot, setSelectedScreenshot] = useState<string>("");
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedBookingForReject, setSelectedBookingForReject] = useState<any>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -191,12 +200,40 @@ export default function OwnerPortal() {
     }
   };
 
+  // Fetch pending payment verifications
+  const fetchPendingPayments = async () => {
+    if (!session?.user?.id) return;
+    
+    try {
+      setIsLoadingPendingPayments(true);
+      const token = localStorage.getItem("bearer_token");
+      const response = await fetch(`/api/bookings/pending-verification?owner_id=${session.user.id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch pending payments");
+      }
+
+      const data = await response.json();
+      setPendingPayments(data);
+    } catch (error) {
+      console.error("Error fetching pending payments:", error);
+      toast.error("Failed to load pending payments");
+    } finally {
+      setIsLoadingPendingPayments(false);
+    }
+  };
+
   // Fetch data on mount and when session changes
   useEffect(() => {
     if (session?.user?.id) {
       fetchSpaces();
       fetchBookings();
       fetchStats();
+      fetchPendingPayments();
     }
   }, [session?.user?.id]);
 
@@ -345,6 +382,79 @@ export default function OwnerPortal() {
     } catch (error) {
       console.error("Error updating booking:", error);
       toast.error("Failed to update booking status");
+    }
+  };
+
+  // Approve payment
+  const handleApprovePayment = async (bookingId: number) => {
+    try {
+      setIsProcessing(true);
+      const token = localStorage.getItem("bearer_token");
+      const response = await fetch("/api/bookings/verify-payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ booking_id: bookingId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to approve payment");
+      }
+
+      toast.success("Payment verified and booking confirmed!");
+      fetchPendingPayments();
+      fetchBookings();
+      fetchStats();
+    } catch (error: any) {
+      console.error("Error approving payment:", error);
+      toast.error(error.message || "Failed to approve payment");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Reject payment
+  const handleRejectPayment = async () => {
+    if (!selectedBookingForReject || !rejectionReason.trim()) {
+      toast.error("Please provide a rejection reason");
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      const token = localStorage.getItem("bearer_token");
+      const response = await fetch("/api/bookings/reject-payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          booking_id: selectedBookingForReject.id,
+          rejection_reason: rejectionReason,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to reject payment");
+      }
+
+      toast.success("Payment rejected and customer notified");
+      setRejectDialogOpen(false);
+      setRejectionReason("");
+      setSelectedBookingForReject(null);
+      fetchPendingPayments();
+      fetchBookings();
+      fetchStats();
+    } catch (error: any) {
+      console.error("Error rejecting payment:", error);
+      toast.error(error.message || "Failed to reject payment");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -684,6 +794,12 @@ export default function OwnerPortal() {
           <TabsList>
             <TabsTrigger value="spaces">My Parking Spaces</TabsTrigger>
             <TabsTrigger value="bookings">Bookings</TabsTrigger>
+            <TabsTrigger value="pending-payments">
+              Pending Payments
+              {pendingPayments.length > 0 && (
+                <Badge variant="destructive" className="ml-2">{pendingPayments.length}</Badge>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           {/* My Parking Spaces Tab */}
@@ -876,8 +992,224 @@ export default function OwnerPortal() {
               ))
             )}
           </TabsContent>
+
+          {/* Pending Payments Tab */}
+          <TabsContent value="pending-payments" className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold">Payment Verifications</h3>
+                <p className="text-sm text-muted-foreground">Review and approve customer payment screenshots</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={fetchPendingPayments}>
+                Refresh
+              </Button>
+            </div>
+
+            {isLoadingPendingPayments ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            ) : pendingPayments.length === 0 ? (
+              <Card className="p-12 text-center">
+                <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">All caught up!</h3>
+                <p className="text-muted-foreground">No pending payment verifications at the moment</p>
+              </Card>
+            ) : (
+              pendingPayments.map((booking) => (
+                <Card key={booking.id} className="border-2 border-yellow-500/50">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <CardTitle className="text-lg">{booking.customerName}</CardTitle>
+                          <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-700 dark:text-yellow-400">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Pending Verification
+                          </Badge>
+                        </div>
+                        <CardDescription className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {booking.parkingSpaceName || "Parking Space"}
+                        </CardDescription>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold">₹{booking.amount}</div>
+                        <div className="text-xs text-muted-foreground">{booking.duration}</div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t">
+                      <div className="space-y-3">
+                        <div>
+                          <div className="text-xs text-muted-foreground mb-1">Booking ID</div>
+                          <div className="text-sm font-medium">{booking.bookingId}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted-foreground mb-1">Date & Time</div>
+                          <div className="text-sm font-medium">{booking.date} • {booking.startTime} - {booking.endTime}</div>
+                        </div>
+                        {booking.transactionId && (
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">Transaction ID</div>
+                            <div className="text-sm font-medium font-mono">{booking.transactionId}</div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <div className="text-xs text-muted-foreground mb-2">Payment Screenshot</div>
+                          {booking.paymentScreenshot ? (
+                            <div className="space-y-2">
+                              <div 
+                                className="w-full h-32 bg-cover bg-center rounded border-2 border-border cursor-pointer hover:opacity-80 transition-opacity"
+                                style={{ backgroundImage: `url(${booking.paymentScreenshot})` }}
+                                onClick={() => {
+                                  setSelectedScreenshot(booking.paymentScreenshot);
+                                  setViewScreenshotDialog(true);
+                                }}
+                              />
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="w-full"
+                                onClick={() => {
+                                  setSelectedScreenshot(booking.paymentScreenshot);
+                                  setViewScreenshotDialog(true);
+                                }}
+                              >
+                                <Eye className="h-3 w-3 mr-1" />
+                                View Full Size
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 bg-muted rounded">
+                              <AlertCircle className="h-4 w-4" />
+                              No screenshot uploaded
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 mt-4 pt-4 border-t">
+                      <Button 
+                        variant="default" 
+                        className="flex-1"
+                        onClick={() => handleApprovePayment(booking.id)}
+                        disabled={isProcessing || !booking.paymentScreenshot}
+                      >
+                        {isProcessing ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                            Approve Payment
+                          </>
+                        )}
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        className="flex-1"
+                        onClick={() => {
+                          setSelectedBookingForReject(booking);
+                          setRejectDialogOpen(true);
+                        }}
+                        disabled={isProcessing}
+                      >
+                        <XCircle className="mr-2 h-4 w-4" />
+                        Reject Payment
+                      </Button>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))
+            )}
+          </TabsContent>
         </Tabs>
       </div>
+
+      {/* View Screenshot Dialog */}
+      <Dialog open={viewScreenshotDialog} onOpenChange={setViewScreenshotDialog}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Payment Screenshot</DialogTitle>
+            <DialogDescription>
+              Review the payment proof submitted by the customer
+            </DialogDescription>
+          </DialogHeader>
+          <div className="w-full max-h-[70vh] overflow-auto">
+            <img 
+              src={selectedScreenshot} 
+              alt="Payment Screenshot" 
+              className="w-full h-auto rounded border"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Payment Dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Payment</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting this payment
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="rejectionReason">Rejection Reason *</Label>
+              <Textarea
+                id="rejectionReason"
+                placeholder="e.g., Screenshot is unclear, Transaction details don't match, Payment not received..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={4}
+                required
+              />
+            </div>
+            <div className="bg-destructive/10 p-3 rounded border border-destructive/20">
+              <p className="text-sm text-destructive">
+                <strong>Note:</strong> The booking will be cancelled and the customer will be notified with your rejection reason.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setRejectDialogOpen(false);
+                  setRejectionReason("");
+                  setSelectedBookingForReject(null);
+                }}
+                disabled={isProcessing}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={handleRejectPayment}
+                disabled={isProcessing || !rejectionReason.trim()}
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Rejecting...
+                  </>
+                ) : (
+                  "Confirm Rejection"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

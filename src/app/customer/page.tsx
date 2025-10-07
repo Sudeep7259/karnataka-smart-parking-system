@@ -27,9 +27,11 @@ import {
   XCircle,
   Edit,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Upload,
+  CheckCircle2
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -181,6 +183,12 @@ export default function CustomerDashboard() {
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
   const [bookingDate, setBookingDate] = useState("");
   const [bookingStartTime, setBookingStartTime] = useState("");
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [selectedBookingForUpload, setSelectedBookingForUpload] = useState<any>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [transactionId, setTransactionId] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -353,6 +361,79 @@ export default function CustomerDashboard() {
     }
   };
 
+  // Handle file upload
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+      toast.error("Only .jpg, .png, and .pdf files are allowed");
+      return;
+    }
+
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+      toast.error("File size must be less than 5MB");
+      return;
+    }
+
+    setUploadedFile(file);
+  };
+
+  // Handle screenshot upload submission
+  const handleUploadScreenshot = async () => {
+    if (!selectedBookingForUpload || !uploadedFile) {
+      toast.error("Please select a file to upload");
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+
+      // In a real implementation, you would upload to cloud storage (S3, Supabase, etc.)
+      // For now, we'll simulate with a data URL
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const screenshotUrl = reader.result as string;
+
+        const token = localStorage.getItem("bearer_token");
+        const response = await fetch("/api/bookings/upload-screenshot", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            booking_id: selectedBookingForUpload.id,
+            screenshot_url: screenshotUrl,
+            transaction_id: transactionId.trim() || undefined,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to upload screenshot");
+        }
+
+        toast.success("Payment proof uploaded successfully! Waiting for verification.");
+        setUploadDialogOpen(false);
+        setSelectedBookingForUpload(null);
+        setUploadedFile(null);
+        setTransactionId("");
+        fetchBookings(); // Refresh bookings list
+      };
+      reader.readAsDataURL(uploadedFile);
+    } catch (error: any) {
+      console.error("Error uploading screenshot:", error);
+      toast.error(error.message || "Failed to upload screenshot");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const filteredSpaces = spaces.filter(space => 
     searchLocation === "" || 
     space.location?.toLowerCase().includes(searchLocation.toLowerCase()) ||
@@ -425,6 +506,19 @@ export default function CustomerDashboard() {
     } catch (error: any) {
       console.error("Error creating booking:", error);
       toast.error(error.message || "Failed to create booking");
+    }
+  };
+
+  // Get payment status badge
+  const getPaymentStatusBadge = (paymentStatus: string) => {
+    switch (paymentStatus) {
+      case 'verified':
+        return <Badge variant="default" className="bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" />Verified</Badge>;
+      case 'rejected':
+        return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
+      case 'pending':
+      default:
+        return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Pending Verification</Badge>;
     }
   };
 
@@ -801,11 +895,19 @@ export default function CustomerDashboard() {
                             }>
                               {booking.status}
                             </Badge>
+                            {booking.paymentStatus && getPaymentStatusBadge(booking.paymentStatus)}
                           </div>
                           <CardDescription className="flex items-center gap-1">
                             <MapPin className="h-4 w-4" />
                             {booking.parkingSpaceLocation || "Location"}
                           </CardDescription>
+                          {booking.paymentStatus === 'rejected' && booking.verificationReason && (
+                            <div className="mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded">
+                              <p className="text-sm text-destructive font-medium">
+                                Rejection Reason: {booking.verificationReason}
+                              </p>
+                            </div>
+                          )}
                         </div>
                         <div className="text-right">
                           <div className="text-2xl font-bold">₹{booking.amount}</div>
@@ -826,7 +928,20 @@ export default function CustomerDashboard() {
                           <div className="text-xs text-muted-foreground mb-1">Time</div>
                           <div className="text-sm font-medium">{booking.startTime} - {booking.endTime}</div>
                         </div>
-                        <div className="flex gap-2 justify-end">
+                        <div className="flex gap-2 justify-end flex-wrap">
+                          {booking.paymentStatus === 'pending' && !booking.paymentScreenshot && (
+                            <Button 
+                              size="sm" 
+                              variant="default"
+                              onClick={() => {
+                                setSelectedBookingForUpload(booking);
+                                setUploadDialogOpen(true);
+                              }}
+                            >
+                              <Upload className="h-4 w-4 mr-1" />
+                              Upload Proof
+                            </Button>
+                          )}
                           {(booking.status === "confirmed" || booking.status === "pending") && (
                             <>
                               <TooltipProvider>
@@ -889,6 +1004,86 @@ export default function CustomerDashboard() {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Upload Screenshot Dialog */}
+        <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Upload Payment Proof</DialogTitle>
+              <DialogDescription>
+                Upload your payment screenshot or receipt for verification
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="transactionId">Transaction ID (Optional)</Label>
+                <Input
+                  id="transactionId"
+                  placeholder="Enter transaction ID if available"
+                  value={transactionId}
+                  onChange={(e) => setTransactionId(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="screenshot">Upload Payment Proof *</Label>
+                <Input
+                  id="screenshot"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.pdf"
+                  onChange={handleFileChange}
+                  ref={fileInputRef}
+                  className="cursor-pointer"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Accepted formats: .jpg, .png, .pdf (Max 5MB)
+                </p>
+                {uploadedFile && (
+                  <div className="mt-2 p-2 bg-muted rounded flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <span className="text-sm">{uploadedFile.name}</span>
+                  </div>
+                )}
+              </div>
+              <div className="bg-primary/10 p-3 rounded border border-primary/20">
+                <p className="text-sm">
+                  <strong>Note:</strong> Your booking will be marked as "Pending Verification" until the admin/owner approves your payment proof.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setUploadDialogOpen(false);
+                    setSelectedBookingForUpload(null);
+                    setUploadedFile(null);
+                    setTransactionId("");
+                  }}
+                  disabled={isUploading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleUploadScreenshot}
+                  disabled={isUploading || !uploadedFile}
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Submit for Verification
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Cancel Booking Dialog */}
         <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
