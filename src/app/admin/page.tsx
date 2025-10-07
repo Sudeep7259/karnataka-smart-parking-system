@@ -1,544 +1,852 @@
 "use client";
 
-import Navigation from "@/components/Navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useSession, authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { 
   Users,
   Car,
   TrendingUp,
   DollarSign,
-  MapPin,
+  Shield,
+  Clock,
+  LogOut,
   CheckCircle2,
   XCircle,
   Eye,
   Search,
-  Filter,
-  MoreVertical,
-  Ban,
-  Edit,
-  Shield,
-  Clock,
-  Calendar
+  Loader2,
+  Trash2,
+  LayoutDashboard,
+  ClipboardList,
+  ParkingCircle,
+  BarChart3,
+  AlertTriangle
 } from "lucide-react";
-import { useState } from "react";
+import { toast } from "sonner";
+import Image from "next/image";
 
-const pendingApprovals = [
-  {
-    id: 1,
-    spaceName: "Whitefield Tech Park Parking",
-    ownerName: "Rahul Verma",
-    location: "ITPL Main Road, Whitefield, Bangalore",
-    city: "Bangalore",
-    totalSpots: 200,
-    price: 45,
-    features: ["CCTV", "24/7", "Covered", "EV Charging"],
-    submittedDate: "2024-01-14",
-    status: "pending",
-    image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=300&fit=crop"
-  },
-  {
-    id: 2,
-    spaceName: "HSR Layout Shopping Complex",
-    ownerName: "Priya Sharma",
-    location: "27th Main Road, HSR Layout, Bangalore",
-    city: "Bangalore",
-    totalSpots: 60,
-    price: 35,
-    features: ["CCTV", "Covered"],
-    submittedDate: "2024-01-13",
-    status: "pending",
-    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop"
-  },
-  {
-    id: 3,
-    spaceName: "Mysore Mall Underground",
-    ownerName: "Anil Kumar",
-    location: "Sayyaji Rao Road, Mysore",
-    city: "Mysore",
-    totalSpots: 150,
-    price: 30,
-    features: ["CCTV", "24/7", "Underground", "Security"],
-    submittedDate: "2024-01-15",
-    status: "pending",
-    image: "https://images.unsplash.com/photo-1573348722427-f1d6819fdf98?w=400&h=300&fit=crop"
-  }
-];
+interface AdminStats {
+  users: {
+    total: number;
+    customers: number;
+    owners: number;
+    admins: number;
+  };
+  bookings: {
+    total: number;
+    pending: number;
+    confirmed: number;
+    completed: number;
+    cancelled: number;
+  };
+  revenue: {
+    total: number;
+  };
+  parkingSpaces: {
+    total: number;
+    active: number;
+    pending: number;
+    inactive: number;
+  };
+}
 
-const allUsers = [
-  { id: 1, name: "Rajesh Kumar", email: "rajesh@example.com", role: "customer", joinDate: "2024-01-10", bookings: 12, status: "active" },
-  { id: 2, name: "Priya Sharma", email: "priya@example.com", role: "owner", joinDate: "2024-01-08", spaces: 3, status: "active" },
-  { id: 3, name: "Amit Patel", email: "amit@example.com", role: "customer", joinDate: "2024-01-12", bookings: 5, status: "active" },
-  { id: 4, name: "Sneha Reddy", email: "sneha@example.com", role: "owner", joinDate: "2024-01-05", spaces: 2, status: "active" },
-  { id: 5, name: "Rahul Verma", email: "rahul@example.com", role: "owner", joinDate: "2024-01-14", spaces: 1, status: "pending" },
-  { id: 6, name: "Lakshmi Iyer", email: "lakshmi@example.com", role: "customer", joinDate: "2024-01-09", bookings: 8, status: "active" },
-];
+interface Booking {
+  id: number;
+  bookingId: string;
+  customerId: string;
+  parkingSpaceId: number;
+  customerName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  duration: string;
+  amount: number;
+  status: string;
+  paymentScreenshot: string | null;
+  paymentStatus: string;
+  verificationReason: string | null;
+  transactionId: string | null;
+  customer: {
+    id: string;
+    name: string;
+    email: string;
+    image: string | null;
+  };
+  parkingSpace: {
+    id: number;
+    name: string;
+    location: string;
+    city: string;
+    address: string;
+    owner: {
+      id: string;
+      name: string;
+      email: string;
+    } | null;
+  };
+}
 
-const allParkingSpaces = [
-  { id: 1, name: "MG Road Premium Parking", owner: "Priya Sharma", city: "Bangalore", spots: 50, revenue: 45000, status: "active" },
-  { id: 2, name: "Koramangala Hub Parking", owner: "Sneha Reddy", city: "Bangalore", spots: 35, revenue: 28000, status: "active" },
-  { id: 3, name: "Mysore Palace Parking", owner: "Anil Kumar", city: "Mysore", spots: 100, revenue: 32000, status: "active" },
-  { id: 4, name: "Jayanagar Shopping District", owner: "Priya Sharma", city: "Bangalore", spots: 45, revenue: 0, status: "inactive" },
-];
+interface ParkingSpace {
+  id: number;
+  ownerId: string;
+  name: string;
+  location: string;
+  city: string;
+  address: string | null;
+  totalSpots: number;
+  availableSpots: number;
+  price: number;
+  status: string;
+  owner: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
 
 export default function AdminDashboard() {
-  const [searchUsers, setSearchUsers] = useState("");
-  const [selectedRole, setSelectedRole] = useState("all");
+  const router = useRouter();
+  const { data: session, isPending } = useSession();
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [parkingSpaces, setParkingSpaces] = useState<ParkingSpace[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedSpace, setSelectedSpace] = useState<ParkingSpace | null>(null);
+  const [screenshotDialogOpen, setScreenshotDialogOpen] = useState(false);
+  const [selectedScreenshot, setSelectedScreenshot] = useState("");
 
-  const totalUsers = allUsers.length;
-  const totalCustomers = allUsers.filter(u => u.role === "customer").length;
-  const totalOwners = allUsers.filter(u => u.role === "owner").length;
-  const totalSpaces = allParkingSpaces.length;
-  const totalRevenue = allParkingSpaces.reduce((sum, space) => sum + space.revenue, 0);
-  const pendingCount = pendingApprovals.length;
+  // Auth check
+  useEffect(() => {
+    if (!isPending && (!session?.user || session.user.role !== "admin")) {
+      toast.error("Admin access required");
+      router.push("/admin/login");
+    }
+  }, [session, isPending, router]);
 
-  const filteredUsers = allUsers.filter(user => 
-    (selectedRole === "all" || user.role === selectedRole) &&
-    (searchUsers === "" || 
-     user.name.toLowerCase().includes(searchUsers.toLowerCase()) ||
-     user.email.toLowerCase().includes(searchUsers.toLowerCase()))
+  // Fetch data
+  useEffect(() => {
+    if (session?.user?.role === "admin") {
+      fetchData();
+    }
+  }, [session]);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem("bearer_token");
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
+
+      const [statsRes, bookingsRes, spacesRes] = await Promise.all([
+        fetch("/api/admin/stats", { headers }),
+        fetch("/api/admin/bookings?paymentStatus=pending", { headers }),
+        fetch("/api/admin/parking-spaces", { headers }),
+      ]);
+
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setStats(statsData);
+      }
+
+      if (bookingsRes.ok) {
+        const bookingsData = await bookingsRes.json();
+        setBookings(bookingsData);
+      }
+
+      if (spacesRes.ok) {
+        const spacesData = await spacesRes.json();
+        setParkingSpaces(spacesData);
+      }
+    } catch (error) {
+      console.error("Error fetching admin data:", error);
+      toast.error("Failed to load admin data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    const { error } = await authClient.signOut();
+    if (error?.code) {
+      toast.error(error.code);
+    } else {
+      localStorage.removeItem("bearer_token");
+      router.push("/admin/login");
+      toast.success("Signed out successfully");
+    }
+  };
+
+  const handleApprovePayment = async (bookingId: number) => {
+    try {
+      const token = localStorage.getItem("bearer_token");
+      const res = await fetch("/api/bookings/verify-payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ bookingId }),
+      });
+
+      if (res.ok) {
+        toast.success("Payment approved and booking confirmed!");
+        fetchData();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Failed to approve payment");
+      }
+    } catch (error) {
+      console.error("Error approving payment:", error);
+      toast.error("Failed to approve payment");
+    }
+  };
+
+  const handleRejectPayment = async () => {
+    if (!selectedBooking || !rejectReason.trim()) {
+      toast.error("Please provide a rejection reason");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("bearer_token");
+      const res = await fetch("/api/bookings/reject-payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          bookingId: selectedBooking.id,
+          reason: rejectReason,
+        }),
+      });
+
+      if (res.ok) {
+        toast.success("Payment rejected");
+        setRejectDialogOpen(false);
+        setRejectReason("");
+        setSelectedBooking(null);
+        fetchData();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Failed to reject payment");
+      }
+    } catch (error) {
+      console.error("Error rejecting payment:", error);
+      toast.error("Failed to reject payment");
+    }
+  };
+
+  const handleDeleteSpace = async () => {
+    if (!selectedSpace) return;
+
+    try {
+      const token = localStorage.getItem("bearer_token");
+      const res = await fetch(`/api/admin/parking-spaces/${selectedSpace.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        toast.success("Parking space deleted successfully");
+        setDeleteDialogOpen(false);
+        setSelectedSpace(null);
+        fetchData();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Failed to delete parking space");
+      }
+    } catch (error) {
+      console.error("Error deleting space:", error);
+      toast.error("Failed to delete parking space");
+    }
+  };
+
+  const filteredSpaces = parkingSpaces.filter((space) =>
+    space.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    space.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    space.city.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleApprove = (spaceId: number) => {
-    console.log("Approved space:", spaceId);
-  };
+  if (isPending || isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
-  const handleReject = (spaceId: number) => {
-    console.log("Rejected space:", spaceId);
-  };
+  if (!session?.user || session.user.role !== "admin") {
+    return null;
+  }
+
+  const pendingPayments = bookings.filter((b) => b.paymentStatus === "pending");
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
-      
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-2">
-            <Shield className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          </div>
-          <p className="text-muted-foreground">Manage users, parking spaces, and system analytics</p>
+    <div className="min-h-screen bg-background flex">
+      {/* Sidebar */}
+      <aside className="w-64 border-r-2 border-primary bg-card p-6 hidden lg:block">
+        <div className="flex items-center gap-2 mb-8">
+          <Shield className="h-8 w-8 text-primary" />
+          <h1 className="text-xl font-black">ADMIN PANEL</h1>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Users
-              </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalUsers}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {totalCustomers} customers, {totalOwners} owners
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Parking Spaces
-              </CardTitle>
-              <Car className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalSpaces}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {pendingCount} pending approval
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Revenue
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">₹{totalRevenue.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                <TrendingUp className="inline h-3 w-3 mr-1" />
-                Monthly platform revenue
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Pending Approvals
-              </CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{pendingCount}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Requires review
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Tabs defaultValue="approvals" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="approvals">
-              Pending Approvals
-              {pendingCount > 0 && (
-                <Badge className="ml-2" variant="destructive">{pendingCount}</Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="users">User Management</TabsTrigger>
-            <TabsTrigger value="spaces">Parking Spaces</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          </TabsList>
-
-          {/* Pending Approvals Tab */}
-          <TabsContent value="approvals" className="space-y-6">
-            {pendingApprovals.length > 0 ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {pendingApprovals.map((space) => (
-                  <Card key={space.id} className="overflow-hidden">
-                    <div 
-                      className="h-48 bg-cover bg-center relative"
-                      style={{ backgroundImage: `url(${space.image})` }}
-                    >
-                      <Badge className="absolute top-3 right-3 bg-yellow-500">
-                        Pending Review
-                      </Badge>
-                    </div>
-                    <CardHeader>
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <CardTitle className="text-xl mb-2">{space.spaceName}</CardTitle>
-                          <CardDescription className="flex items-center gap-1 mb-1">
-                            <MapPin className="h-4 w-4" />
-                            {space.location}
-                          </CardDescription>
-                          <CardDescription className="flex items-center gap-1">
-                            <Users className="h-4 w-4" />
-                            Owner: {space.ownerName}
-                          </CardDescription>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4 py-4 border-t border-b">
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">Total Spots</div>
-                          <div className="text-lg font-semibold">{space.totalSpots}</div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">Price per Hour</div>
-                          <div className="text-lg font-semibold">₹{space.price}</div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 my-3">
-                        {space.features.map((feature, idx) => (
-                          <Badge key={idx} variant="secondary" className="text-xs">
-                            {feature}
-                          </Badge>
-                        ))}
-                      </div>
-
-                      <div className="text-xs text-muted-foreground mb-4">
-                        <Calendar className="inline h-3 w-3 mr-1" />
-                        Submitted: {space.submittedDate}
-                      </div>
-
-                      <div className="flex gap-3">
-                        <Button 
-                          className="flex-1" 
-                          onClick={() => handleApprove(space.id)}
-                        >
-                          <CheckCircle2 className="h-4 w-4 mr-2" />
-                          Approve
-                        </Button>
-                        <Button 
-                          variant="destructive" 
-                          className="flex-1"
-                          onClick={() => handleReject(space.id)}
-                        >
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Reject
-                        </Button>
-                        <Button variant="outline" size="icon">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <Card className="p-12 text-center">
-                <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">All caught up!</h3>
-                <p className="text-muted-foreground">No pending parking space approvals</p>
-              </Card>
+        <nav className="space-y-2">
+          <Button
+            variant={activeTab === "dashboard" ? "default" : "ghost"}
+            className="w-full justify-start font-bold"
+            onClick={() => setActiveTab("dashboard")}
+          >
+            <LayoutDashboard className="mr-2 h-4 w-4" />
+            DASHBOARD
+          </Button>
+          <Button
+            variant={activeTab === "bookings" ? "default" : "ghost"}
+            className="w-full justify-start font-bold"
+            onClick={() => setActiveTab("bookings")}
+          >
+            <ClipboardList className="mr-2 h-4 w-4" />
+            BOOKINGS
+            {pendingPayments.length > 0 && (
+              <Badge className="ml-auto" variant="destructive">
+                {pendingPayments.length}
+              </Badge>
             )}
-          </TabsContent>
+          </Button>
+          <Button
+            variant={activeTab === "spaces" ? "default" : "ghost"}
+            className="w-full justify-start font-bold"
+            onClick={() => setActiveTab("spaces")}
+          >
+            <ParkingCircle className="mr-2 h-4 w-4" />
+            PARKING SLOTS
+          </Button>
+          <Button
+            variant={activeTab === "reports" ? "default" : "ghost"}
+            className="w-full justify-start font-bold"
+            onClick={() => setActiveTab("reports")}
+          >
+            <BarChart3 className="mr-2 h-4 w-4" />
+            REPORTS
+          </Button>
+        </nav>
 
-          {/* User Management Tab */}
-          <TabsContent value="users" className="space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search users by name or email..."
-                  value={searchUsers}
-                  onChange={(e) => setSearchUsers(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant={selectedRole === "all" ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setSelectedRole("all")}
-                >
-                  All
-                </Button>
-                <Button 
-                  variant={selectedRole === "customer" ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setSelectedRole("customer")}
-                >
-                  Customers
-                </Button>
-                <Button 
-                  variant={selectedRole === "owner" ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setSelectedRole("owner")}
-                >
-                  Owners
-                </Button>
-              </div>
+        <div className="mt-auto pt-6 border-t border-primary mt-8">
+          <Button
+            variant="destructive"
+            className="w-full font-bold"
+            onClick={handleSignOut}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            LOGOUT
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-6 overflow-auto">
+        {/* Mobile Navigation */}
+        <div className="lg:hidden mb-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid grid-cols-4">
+              <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+              <TabsTrigger value="bookings">
+                Bookings
+                {pendingPayments.length > 0 && (
+                  <Badge className="ml-1" variant="destructive">
+                    {pendingPayments.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="spaces">Slots</TabsTrigger>
+              <TabsTrigger value="reports">Reports</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {/* Dashboard Tab */}
+        {activeTab === "dashboard" && stats && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-3xl font-black mb-2">DASHBOARD OVERVIEW</h2>
+              <p className="text-muted-foreground">System statistics and metrics</p>
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>All Users ({filteredUsers.length})</CardTitle>
-                <CardDescription>Manage user accounts and permissions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {filteredUsers.map((user) => (
-                    <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                          <Users className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <div className="font-semibold">{user.name}</div>
-                          <div className="text-sm text-muted-foreground">{user.email}</div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <Badge variant={user.role === "owner" ? "default" : "secondary"}>
-                            {user.role}
-                          </Badge>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {user.role === "customer" ? `${user.bookings} bookings` : `${user.spaces} spaces`}
-                          </div>
-                        </div>
-                        <Badge variant={user.status === "active" ? "default" : "secondary"}>
-                          {user.status}
-                        </Badge>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Ban className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Total Users
+                  </CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.users.total}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {stats.users.customers} customers, {stats.users.owners} owners
+                  </p>
+                </CardContent>
+              </Card>
 
-          {/* Parking Spaces Tab */}
-          <TabsContent value="spaces" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>All Parking Spaces ({allParkingSpaces.length})</CardTitle>
-                <CardDescription>Overview of all registered parking spaces</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {allParkingSpaces.map((space) => (
-                    <div key={space.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                          <Car className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <div className="font-semibold">{space.name}</div>
-                          <div className="text-sm text-muted-foreground flex items-center gap-2">
-                            <MapPin className="h-3 w-3" />
-                            {space.city}
-                            <span className="mx-1">•</span>
-                            Owner: {space.owner}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-6">
-                        <div className="text-right">
-                          <div className="text-sm text-muted-foreground">Spots</div>
-                          <div className="font-semibold">{space.spots}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm text-muted-foreground">Revenue</div>
-                          <div className="font-semibold">₹{space.revenue.toLocaleString()}</div>
-                        </div>
-                        <Badge variant={space.status === "active" ? "default" : "secondary"}>
-                          {space.status}
-                        </Badge>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Parking Spaces
+                  </CardTitle>
+                  <Car className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.parkingSpaces.total}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {stats.parkingSpaces.active} active
+                  </p>
+                </CardContent>
+              </Card>
 
-          {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Total Revenue
+                  </CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">₹{stats.revenue.total.toLocaleString()}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    <TrendingUp className="inline h-3 w-3 mr-1" />
+                    From completed bookings
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Pending Verification
+                  </CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{pendingPayments.length}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Requires review
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Platform Statistics</CardTitle>
-                  <CardDescription>Overall system metrics</CardDescription>
+                  <CardTitle>Bookings Overview</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Total Bookings (Monthly)</span>
-                    <span className="font-semibold">1,234</span>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="font-bold">{stats.bookings.total}</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Average Booking Value</span>
-                    <span className="font-semibold">₹280</span>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Pending</span>
+                    <span className="font-bold">{stats.bookings.pending}</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Platform Fee Revenue</span>
-                    <span className="font-semibold">₹12,500</span>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Confirmed</span>
+                    <span className="font-bold">{stats.bookings.confirmed}</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Active Users (Daily)</span>
-                    <span className="font-semibold">456</span>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Completed</span>
+                    <span className="font-bold">{stats.bookings.completed}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Cancelled</span>
+                    <span className="font-bold">{stats.bookings.cancelled}</span>
                   </div>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle>City-wise Distribution</CardTitle>
-                  <CardDescription>Parking spaces by city</CardDescription>
+                  <CardTitle>Parking Spaces Status</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Bangalore</span>
-                    <span className="font-semibold">450 spaces</span>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="font-bold">{stats.parkingSpaces.total}</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Mysore</span>
-                    <span className="font-semibold">180 spaces</span>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Active</span>
+                    <span className="font-bold text-green-600">{stats.parkingSpaces.active}</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Mangalore</span>
-                    <span className="font-semibold">125 spaces</span>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Pending</span>
+                    <span className="font-bold text-yellow-600">{stats.parkingSpaces.pending}</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Hubli</span>
-                    <span className="font-semibold">95 spaces</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Performing Spaces</CardTitle>
-                  <CardDescription>Highest revenue this month</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">MG Road Premium</div>
-                      <div className="text-xs text-muted-foreground">Bangalore</div>
-                    </div>
-                    <span className="font-semibold">₹45,000</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">Mysore Palace Parking</div>
-                      <div className="text-xs text-muted-foreground">Mysore</div>
-                    </div>
-                    <span className="font-semibold">₹32,000</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">Koramangala Hub</div>
-                      <div className="text-xs text-muted-foreground">Bangalore</div>
-                    </div>
-                    <span className="font-semibold">₹28,000</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Growth Metrics</CardTitle>
-                  <CardDescription>Month-over-month comparison</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">New Users</span>
-                    <span className="font-semibold text-green-600">+24%</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Bookings</span>
-                    <span className="font-semibold text-green-600">+18%</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Revenue</span>
-                    <span className="font-semibold text-green-600">+15%</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">New Spaces</span>
-                    <span className="font-semibold text-green-600">+12%</span>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Inactive</span>
+                    <span className="font-bold text-gray-600">{stats.parkingSpaces.inactive}</span>
                   </div>
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+          </div>
+        )}
+
+        {/* Bookings Tab */}
+        {activeTab === "bookings" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-3xl font-black mb-2">BOOKING APPROVALS</h2>
+              <p className="text-muted-foreground">Review and approve payment verifications</p>
+            </div>
+
+            {pendingPayments.length === 0 ? (
+              <Card className="p-12 text-center">
+                <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">All caught up!</h3>
+                <p className="text-muted-foreground">No pending payment verifications</p>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {pendingPayments.map((booking) => (
+                  <Card key={booking.id} className="p-6">
+                    <div className="flex flex-col md:flex-row gap-6">
+                      <div className="flex-1 space-y-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-bold text-lg">Booking #{booking.bookingId}</h3>
+                            <Badge variant="secondary">Pending Verification</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {booking.parkingSpace.name} - {booking.parkingSpace.city}
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Customer</p>
+                            <p className="font-semibold">{booking.customer.name}</p>
+                            <p className="text-sm text-muted-foreground">{booking.customer.email}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Booking Details</p>
+                            <p className="font-semibold">{booking.date}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {booking.startTime} - {booking.endTime}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Amount</p>
+                            <p className="font-semibold text-lg">₹{booking.amount}</p>
+                          </div>
+                          {booking.transactionId && (
+                            <div>
+                              <p className="text-xs text-muted-foreground">Transaction ID</p>
+                              <p className="font-semibold text-sm">{booking.transactionId}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {booking.paymentScreenshot && (
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-2">Payment Screenshot</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedScreenshot(booking.paymentScreenshot!);
+                                setScreenshotDialogOpen(true);
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Screenshot
+                            </Button>
+                          </div>
+                        )}
+
+                        <div className="flex gap-3 pt-4">
+                          <Button
+                            onClick={() => handleApprovePayment(booking.id)}
+                            className="flex-1"
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Approve Payment
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={() => {
+                              setSelectedBooking(booking);
+                              setRejectDialogOpen(true);
+                            }}
+                            className="flex-1"
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Reject Payment
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Parking Slots Tab */}
+        {activeTab === "spaces" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-black mb-2">PARKING SLOT MANAGEMENT</h2>
+                <p className="text-muted-foreground">Manage and delete parking spaces</p>
+              </div>
+            </div>
+
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search parking spaces..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            <div className="space-y-4">
+              {filteredSpaces.map((space) => (
+                <Card key={space.id} className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-bold text-lg">{space.name}</h3>
+                        <Badge
+                          variant={
+                            space.status === "active"
+                              ? "default"
+                              : space.status === "pending"
+                              ? "secondary"
+                              : "outline"
+                          }
+                        >
+                          {space.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {space.location}, {space.city}
+                      </p>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Owner</p>
+                          <p className="font-semibold">{space.owner.name}</p>
+                          <p className="text-xs text-muted-foreground">{space.owner.email}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Total Spots</p>
+                          <p className="font-semibold text-lg">{space.totalSpots}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Available</p>
+                          <p className="font-semibold text-lg">{space.availableSpots}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Price</p>
+                          <p className="font-semibold text-lg">₹{space.price}/hr</p>
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedSpace(space);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Space
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+
+              {filteredSpaces.length === 0 && (
+                <Card className="p-12 text-center">
+                  <p className="text-muted-foreground">No parking spaces found</p>
+                </Card>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Reports Tab */}
+        {activeTab === "reports" && stats && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-3xl font-black mb-2">SYSTEM REPORTS</h2>
+              <p className="text-muted-foreground">Analytics and insights</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>User Distribution</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total Users</span>
+                    <span className="font-bold">{stats.users.total}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Customers</span>
+                    <span className="font-bold">{stats.users.customers}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Owners</span>
+                    <span className="font-bold">{stats.users.owners}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Admins</span>
+                    <span className="font-bold">{stats.users.admins}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Revenue Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total Revenue</span>
+                    <span className="font-bold">₹{stats.revenue.total.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Completed Bookings</span>
+                    <span className="font-bold">{stats.bookings.completed}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Avg. Booking Value</span>
+                    <span className="font-bold">
+                      ₹{stats.bookings.completed > 0 ? Math.round(stats.revenue.total / stats.bookings.completed) : 0}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* Screenshot Dialog */}
+      <Dialog open={screenshotDialogOpen} onOpenChange={setScreenshotDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Payment Screenshot</DialogTitle>
+          </DialogHeader>
+          {selectedScreenshot && (
+            <div className="relative w-full h-96">
+              <Image
+                src={selectedScreenshot}
+                alt="Payment Screenshot"
+                fill
+                className="object-contain"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Payment Dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Payment</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting this payment verification.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="reason">Rejection Reason *</Label>
+              <Textarea
+                id="reason"
+                placeholder="e.g., Screenshot is unclear, transaction ID doesn't match, suspicious activity..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleRejectPayment}>
+              <XCircle className="h-4 w-4 mr-2" />
+              Reject Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Space Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Parking Space</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this parking space? This will also delete all related bookings.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedSpace && (
+            <div className="bg-destructive/10 border border-destructive/20 rounded p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                <p className="font-semibold text-destructive">Warning: This action cannot be undone</p>
+              </div>
+              <p className="text-sm">
+                You are about to delete <strong>{selectedSpace.name}</strong> and all associated bookings.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteSpace}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Space
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
