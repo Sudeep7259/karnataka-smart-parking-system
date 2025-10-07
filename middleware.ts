@@ -7,8 +7,29 @@ export async function middleware(request: NextRequest) {
 		headers: await headers()
 	})
  
-	if(!session) {
-		return NextResponse.redirect(new URL("/sign-in", request.url));
+	const { pathname } = request.nextUrl;
+	
+	// Admin route protection
+	if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
+		if (!session) {
+			return NextResponse.redirect(new URL("/admin/login", request.url));
+		}
+		
+		// Check admin role
+		if (session.user.role !== "admin") {
+			return NextResponse.redirect(new URL("/admin/login", request.url));
+		}
+		
+		return NextResponse.next();
+	}
+	
+	// Customer and owner route protection
+	if (pathname.startsWith("/customer") || pathname.startsWith("/owner")) {
+		if (!session) {
+			return NextResponse.redirect(new URL("/sign-in", request.url));
+		}
+		
+		return NextResponse.next();
 	}
  
 	return NextResponse.next();
@@ -16,5 +37,5 @@ export async function middleware(request: NextRequest) {
  
 export const config = {
   runtime: "nodejs",
-  matcher: ["/customer", "/owner", "/admin"], // Apply middleware to specific routes
+  matcher: ["/customer", "/owner", "/admin", "/admin/:path*"], // Apply middleware to specific routes
 };

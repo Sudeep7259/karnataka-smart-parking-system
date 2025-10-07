@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, X, User, LogOut } from "lucide-react";
+import { Menu, X, User, LogOut, Shield } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
@@ -68,6 +68,15 @@ export default function Navigation() {
                 {link.label}
               </Link>
             ))}
+            {session?.user?.role === "admin" && (
+              <Link
+                href="/admin"
+                className="text-sm font-bold hover:text-primary flex items-center gap-1"
+              >
+                <Shield className="h-4 w-4" />
+                ADMIN
+              </Link>
+            )}
           </div>
 
           {/* Right side actions */}
@@ -94,6 +103,14 @@ export default function Navigation() {
                       <span>Profile</span>
                     </Link>
                   </DropdownMenuItem>
+                  {session?.user?.role === "admin" && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="cursor-pointer">
+                        <Shield className="mr-2 h-4 w-4" />
+                        <span>Admin Dashboard</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Sign Out</span>
@@ -136,6 +153,16 @@ export default function Navigation() {
                 {link.label}
               </Link>
             ))}
+            {session?.user?.role === "admin" && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-2 py-2 text-sm font-bold hover:text-primary"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <Shield className="h-4 w-4" />
+                ADMIN
+              </Link>
+            )}
             {!session?.user && (
               <div className="flex gap-2 pt-2">
                 <Button variant="outline" size="sm" asChild className="flex-1 border-2">
