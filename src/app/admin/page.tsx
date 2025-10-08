@@ -120,11 +120,11 @@ interface ParkingSpace {
   };
 }
 
-export default function AdminDashboard() {
+export default function AdminPage() {
   const router = useRouter();
-  const { data: session, isPending } = useSession();
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [parkingSpaces, setParkingSpaces] = useState<ParkingSpace[]>([]);
@@ -137,20 +137,18 @@ export default function AdminDashboard() {
   const [screenshotDialogOpen, setScreenshotDialogOpen] = useState(false);
   const [selectedScreenshot, setSelectedScreenshot] = useState("");
 
-  // Auth check
+  // Check admin authentication
   useEffect(() => {
-    if (!isPending && (!session?.user || session.user.role !== "admin")) {
-      toast.error("Admin access required");
+    const adminAuth = localStorage.getItem("admin_authenticated");
+    if (adminAuth === "true") {
+      setIsAuthenticated(true);
+      fetchData();
+    } else {
+      toast.error("Admin authentication required");
       router.push("/admin/login");
     }
-  }, [session, isPending, router]);
-
-  // Fetch data
-  useEffect(() => {
-    if (session?.user?.role === "admin") {
-      fetchData();
-    }
-  }, [session]);
+    setIsLoading(false);
+  }, [router]);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -188,15 +186,10 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleSignOut = async () => {
-    const { error } = await authClient.signOut();
-    if (error?.code) {
-      toast.error(error.code);
-    } else {
-      localStorage.removeItem("bearer_token");
-      router.push("/admin/login");
-      toast.success("Signed out successfully");
-    }
+  const handleSignOut = () => {
+    localStorage.removeItem("admin_authenticated");
+    router.push("/admin/login");
+    toast.success("Signed out successfully");
   };
 
   const handleApprovePayment = async (bookingId: number) => {
@@ -293,7 +286,7 @@ export default function AdminDashboard() {
     space.city.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (isPending || isLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -301,7 +294,7 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!session?.user || session.user.role !== "admin") {
+  if (!isAuthenticated) {
     return null;
   }
 

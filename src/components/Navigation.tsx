@@ -38,7 +38,6 @@ export default function Navigation() {
     { href: "/", label: "HOME" },
     { href: "/customer", label: "FIND PARKING" },
     { href: "/owner", label: "LIST SPACE" },
-    { href: "/about", label: "ABOUT" },
   ];
 
   return (
