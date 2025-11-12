@@ -42,124 +42,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-const parkingSpaces = [
-  {
-    id: 1,
-    name: "MG Road Premium Parking",
-    location: "MG Road, Bangalore",
-    city: "Bangalore",
-    distance: "0.5 km",
-    price: 50,
-    priceType: "per hour",
-    rating: 4.8,
-    reviews: 245,
-    totalSpots: 50,
-    availableSpots: 12,
-    features: ["CCTV", "24/7", "Covered"],
-    image: "https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=400&h=300&fit=crop"
-  },
-  {
-    id: 2,
-    name: "Koramangala Hub Parking",
-    location: "Koramangala 4th Block, Bangalore",
-    city: "Bangalore",
-    distance: "1.2 km",
-    price: 40,
-    priceType: "per hour",
-    rating: 4.6,
-    reviews: 189,
-    totalSpots: 35,
-    availableSpots: 8,
-    features: ["CCTV", "Covered", "EV Charging"],
-    image: "https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=400&h=300&fit=crop"
-  },
-  {
-    id: 3,
-    name: "Indiranagar Shopping Complex",
-    location: "100 Feet Road, Indiranagar",
-    city: "Bangalore",
-    distance: "2.1 km",
-    price: 30,
-    priceType: "per hour",
-    rating: 4.5,
-    reviews: 156,
-    totalSpots: 80,
-    availableSpots: 25,
-    features: ["24/7", "Security"],
-    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop"
-  },
-  {
-    id: 4,
-    name: "Mysore Palace Parking",
-    location: "Near Mysore Palace, Mysore",
-    city: "Mysore",
-    distance: "0.3 km",
-    price: 20,
-    priceType: "per hour",
-    rating: 4.7,
-    reviews: 98,
-    totalSpots: 100,
-    availableSpots: 45,
-    features: ["CCTV", "Open Air"],
-    image: "https://images.unsplash.com/photo-1609920658906-8223bd289001?w=400&h=300&fit=crop"
-  },
-  {
-    id: 5,
-    name: "Jayanagar Shopping District",
-    location: "4th Block, Jayanagar",
-    city: "Bangalore",
-    distance: "3.5 km",
-    price: 35,
-    priceType: "per hour",
-    rating: 4.4,
-    reviews: 134,
-    totalSpots: 45,
-    availableSpots: 15,
-    features: ["CCTV", "Covered"],
-    image: "https://images.unsplash.com/photo-1573348722427-f1d6819fdf98?w=400&h=300&fit=crop"
-  },
-  {
-    id: 6,
-    name: "Whitefield Tech Park Parking",
-    location: "ITPL Main Road, Whitefield",
-    city: "Bangalore",
-    distance: "8.2 km",
-    price: 45,
-    priceType: "per hour",
-    rating: 4.9,
-    reviews: 312,
-    totalSpots: 200,
-    availableSpots: 67,
-    features: ["CCTV", "24/7", "Covered", "EV Charging"],
-    image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=300&fit=crop"
-  }
-];
-
-const myBookings = [
-  {
-    id: 1,
-    spaceName: "MG Road Premium Parking",
-    location: "MG Road, Bangalore",
-    date: "2024-01-15",
-    time: "10:00 AM - 2:00 PM",
-    duration: "4 hours",
-    amount: 200,
-    status: "upcoming",
-    bookingId: "BK001234"
-  },
-  {
-    id: 2,
-    spaceName: "Koramangala Hub Parking",
-    location: "Koramangala, Bangalore",
-    date: "2024-01-10",
-    time: "9:00 AM - 6:00 PM",
-    duration: "9 hours",
-    amount: 360,
-    status: "completed",
-    bookingId: "BK001189"
-  }
-];
-
 export default function CustomerDashboard() {
   const { data: session, isPending } = useSession();
   const router = useRouter();
@@ -189,6 +71,7 @@ export default function CustomerDashboard() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [transactionId, setTransactionId] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingBookingId, setPendingBookingId] = useState<number | null>(null);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -385,16 +268,21 @@ export default function CustomerDashboard() {
 
   // Handle screenshot upload submission
   const handleUploadScreenshot = async () => {
-    if (!selectedBookingForUpload || !uploadedFile) {
+    if (!uploadedFile) {
       toast.error("Please select a file to upload");
+      return;
+    }
+
+    const bookingIdToUse = selectedBookingForUpload?.id || pendingBookingId;
+    if (!bookingIdToUse) {
+      toast.error("No booking selected");
       return;
     }
 
     try {
       setIsUploading(true);
 
-      // In a real implementation, you would upload to cloud storage (S3, Supabase, etc.)
-      // For now, we'll simulate with a data URL
+      // Convert file to base64
       const reader = new FileReader();
       reader.onloadend = async () => {
         const screenshotUrl = reader.result as string;
@@ -407,7 +295,7 @@ export default function CustomerDashboard() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            booking_id: selectedBookingForUpload.id,
+            booking_id: bookingIdToUse,
             screenshot_url: screenshotUrl,
             transaction_id: transactionId.trim() || undefined,
           }),
@@ -418,12 +306,21 @@ export default function CustomerDashboard() {
           throw new Error(errorData.error || "Failed to upload screenshot");
         }
 
-        toast.success("Payment proof uploaded successfully! Waiting for verification.");
+        toast.success("Payment proof uploaded successfully! Your booking is pending verification.");
         setUploadDialogOpen(false);
+        setBookingDialogOpen(false);
         setSelectedBookingForUpload(null);
+        setPendingBookingId(null);
         setUploadedFile(null);
         setTransactionId("");
-        fetchBookings(); // Refresh bookings list
+        setBookingStep(1);
+        setSelectedSpace(null);
+        setBookingDate("");
+        setBookingStartTime("");
+        fetchBookings();
+        
+        // Show info about next steps
+        toast.info("Admin will verify your payment and confirm your booking shortly.");
       };
       reader.readAsDataURL(uploadedFile);
     } catch (error: any) {
@@ -465,7 +362,7 @@ export default function CustomerDashboard() {
       const endMins = endMinutes % 60;
       const endTime = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`;
 
-      // Create booking via API
+      // Create booking with PENDING status - requires payment verification
       const token = localStorage.getItem("bearer_token");
       const bookingPayload = {
         customerId: session.user.id,
@@ -476,7 +373,7 @@ export default function CustomerDashboard() {
         endTime: endTime,
         duration: `${bookingDuration} hours`,
         amount: calculateTotal(),
-        status: "confirmed"
+        status: "pending" // Changed from "confirmed" to "pending"
       };
 
       const response = await fetch("/api/bookings", {
@@ -494,15 +391,11 @@ export default function CustomerDashboard() {
 
       const newBooking = await response.json();
       
-      // Close dialog
-      setBookingDialogOpen(false);
-      setBookingStep(1);
-      setSelectedSpace(null);
-      setBookingDate("");
-      setBookingStartTime("");
-
-      // Redirect to confirmation page
-      router.push(`/booking-confirmation?bookingId=${newBooking.id}`);
+      // Store the booking ID and show upload dialog
+      setPendingBookingId(newBooking.id);
+      setBookingStep(3); // Move to upload step
+      
+      toast.success("Booking created! Please upload your payment proof to complete.");
     } catch (error: any) {
       console.error("Error creating booking:", error);
       toast.error(error.message || "Failed to create booking");
@@ -626,9 +519,12 @@ export default function CustomerDashboard() {
                 {filteredSpaces.map((space) => (
                   <Card key={space.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                     <div 
-                      className="h-48 bg-cover bg-center relative"
-                      style={{ backgroundImage: `url(${space.image || 'https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=400&h=300&fit=crop'})` }}
+                      className="h-48 bg-muted bg-cover bg-center relative flex items-center justify-center"
+                      style={space.imageUrl ? { backgroundImage: `url(${space.imageUrl})` } : {}}
                     >
+                      {!space.imageUrl && (
+                        <Car className="h-16 w-16 text-muted-foreground" />
+                      )}
                       <Badge className="absolute top-3 right-3 bg-background/90">
                         {space.availableSpots || 0} spots left
                       </Badge>
@@ -656,7 +552,7 @@ export default function CustomerDashboard() {
                       </div>
 
                       <div className="flex flex-wrap gap-2 mt-3">
-                        {(space.features || []).map((feature, idx) => (
+                        {(space.features || []).map((feature: string, idx: number) => (
                           <Badge key={idx} variant="secondary" className="text-xs">
                             {feature}
                           </Badge>
@@ -675,6 +571,9 @@ export default function CustomerDashboard() {
                             setSelectedSpace(null);
                             setBookingDate("");
                             setBookingStartTime("");
+                            setPendingBookingId(null);
+                            setUploadedFile(null);
+                            setTransactionId("");
                           }
                         }}>
                           <DialogTrigger asChild>
@@ -689,7 +588,7 @@ export default function CustomerDashboard() {
                             <DialogHeader>
                               <DialogTitle>Book Parking Space</DialogTitle>
                               <DialogDescription>
-                                Complete your booking for {space.name}
+                                {bookingStep === 3 ? "Upload payment proof to complete booking" : `Complete your booking for ${space.name}`}
                               </DialogDescription>
                             </DialogHeader>
 
@@ -791,14 +690,31 @@ export default function CustomerDashboard() {
                                     </Button>
                                   </div>
 
+                                  <div className="bg-primary/10 p-4 rounded-lg border border-primary/20 mb-4">
+                                    <div className="flex items-start gap-2">
+                                      <AlertCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                                      <div>
+                                        <p className="font-semibold mb-1">Payment Verification Required</p>
+                                        <p className="text-sm text-muted-foreground">
+                                          After making payment, you must upload a screenshot or proof of payment for admin verification before your booking is confirmed.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+
                                   {paymentMethod === "upi" ? (
-                                    <UPIPayment
-                                      upiId="7259663197@slc"
-                                      amount={calculateTotal()}
-                                      payeeName="Parking Space Management"
-                                      transactionNote={`Booking_${space.id}_${Date.now()}`}
-                                      onPaymentComplete={handlePaymentComplete}
-                                    />
+                                    <div className="space-y-4">
+                                      <UPIPayment
+                                        upiId="7259663197@slc"
+                                        amount={calculateTotal()}
+                                        payeeName="Parking Space Management"
+                                        transactionNote={`Booking_${space.id}_${Date.now()}`}
+                                        onPaymentComplete={handlePaymentComplete}
+                                      />
+                                      <div className="text-sm text-muted-foreground text-center">
+                                        After completing payment, click "Payment Complete" to upload proof
+                                      </div>
+                                    </div>
                                   ) : (
                                     <div className="space-y-4">
                                       <div className="space-y-3">
@@ -832,26 +748,99 @@ export default function CustomerDashboard() {
                                         </p>
                                       </div>
 
-                                      <Button className="w-full" size="lg">
-                                        Pay ₹{calculateTotal()}
+                                      <Button className="w-full" size="lg" onClick={handlePaymentComplete}>
+                                        Complete Payment & Upload Proof
                                       </Button>
                                     </div>
                                   )}
                                 </div>
 
-                                {paymentMethod === "card" && (
-                                  <div className="flex gap-3">
-                                    <Button variant="outline" className="flex-1" onClick={() => setBookingStep(1)}>
-                                      Back
-                                    </Button>
-                                  </div>
-                                )}
+                                <Button variant="outline" className="w-full" onClick={() => setBookingStep(1)}>
+                                  Back to Booking Details
+                                </Button>
+                              </div>
+                            )}
 
-                                {paymentMethod === "upi" && (
-                                  <Button variant="outline" className="w-full" onClick={() => setBookingStep(1)}>
-                                    Back to Booking Details
+                            {bookingStep === 3 && (
+                              <div className="space-y-4">
+                                <div className="bg-primary/10 p-4 rounded-lg border border-primary/20">
+                                  <div className="flex items-start gap-2">
+                                    <AlertCircle className="h-5 w-5 text-primary mt-0.5" />
+                                    <div>
+                                      <p className="font-semibold mb-1">Upload Payment Proof</p>
+                                      <p className="text-sm text-muted-foreground">
+                                        Your booking has been created and is pending verification. Please upload your payment screenshot or receipt.
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <Label htmlFor="transactionId">Transaction ID (Optional)</Label>
+                                  <Input
+                                    id="transactionId"
+                                    placeholder="Enter transaction ID if available"
+                                    value={transactionId}
+                                    onChange={(e) => setTransactionId(e.target.value)}
+                                  />
+                                </div>
+                                
+                                <div>
+                                  <Label htmlFor="screenshot">Upload Payment Proof *</Label>
+                                  <Input
+                                    id="screenshot"
+                                    type="file"
+                                    accept=".jpg,.jpeg,.png,.pdf"
+                                    onChange={handleFileChange}
+                                    ref={fileInputRef}
+                                    className="cursor-pointer"
+                                  />
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Accepted formats: .jpg, .jpeg, .png, .pdf (Max 5MB)
+                                  </p>
+                                  {uploadedFile && (
+                                    <div className="mt-2 p-2 bg-muted rounded flex items-center gap-2">
+                                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                      <span className="text-sm">{uploadedFile.name}</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="flex gap-3">
+                                  <Button
+                                    variant="outline"
+                                    className="flex-1"
+                                    onClick={() => {
+                                      setBookingDialogOpen(false);
+                                      setBookingStep(1);
+                                      setSelectedSpace(null);
+                                      setPendingBookingId(null);
+                                      setUploadedFile(null);
+                                      setTransactionId("");
+                                      fetchBookings();
+                                    }}
+                                    disabled={isUploading}
+                                  >
+                                    Skip for Now
                                   </Button>
-                                )}
+                                  <Button
+                                    className="flex-1"
+                                    onClick={handleUploadScreenshot}
+                                    disabled={isUploading || !uploadedFile}
+                                  >
+                                    {isUploading ? (
+                                      <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Uploading...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Upload className="mr-2 h-4 w-4" />
+                                        Submit for Verification
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
                               </div>
                             )}
                           </DialogContent>
@@ -964,7 +953,7 @@ export default function CustomerDashboard() {
                                     <TooltipContent>
                                       <div className="flex items-center gap-2">
                                         <AlertCircle className="h-4 w-4" />
-                                        <span>Book a parking slot to enable navigation</span>
+                                        <span>Payment verification required to enable navigation</span>
                                       </div>
                                     </TooltipContent>
                                   )}
@@ -1035,7 +1024,7 @@ export default function CustomerDashboard() {
                   className="cursor-pointer"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Accepted formats: .jpg, .png, .pdf (Max 5MB)
+                  Accepted formats: .jpg, .jpeg, .png, .pdf (Max 5MB)
                 </p>
                 {uploadedFile && (
                   <div className="mt-2 p-2 bg-muted rounded flex items-center gap-2">
@@ -1046,7 +1035,7 @@ export default function CustomerDashboard() {
               </div>
               <div className="bg-primary/10 p-3 rounded border border-primary/20">
                 <p className="text-sm">
-                  <strong>Note:</strong> Your booking will be marked as "Pending Verification" until the admin/owner approves your payment proof.
+                  <strong>Note:</strong> Your booking will remain "Pending Verification" until the admin/owner approves your payment proof.
                 </p>
               </div>
               <div className="flex gap-3">
