@@ -36,7 +36,9 @@ import {
   ClipboardList,
   ParkingCircle,
   BarChart3,
-  AlertTriangle
+  AlertTriangle,
+  PowerOff,
+  Power
 } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
@@ -133,6 +135,7 @@ export default function AdminPage() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
   const [selectedSpace, setSelectedSpace] = useState<ParkingSpace | null>(null);
   const [screenshotDialogOpen, setScreenshotDialogOpen] = useState(false);
   const [selectedScreenshot, setSelectedScreenshot] = useState("");
@@ -277,6 +280,33 @@ export default function AdminPage() {
     } catch (error) {
       console.error("Error deleting space:", error);
       toast.error("Failed to delete parking space");
+    }
+  };
+
+  const handleToggleSpaceStatus = async (space: ParkingSpace, newStatus: 'active' | 'inactive') => {
+    try {
+      const token = localStorage.getItem("bearer_token");
+      const res = await fetch(`/api/admin/parking-spaces/${space.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (res.ok) {
+        toast.success(`Parking space ${newStatus === 'inactive' ? 'deactivated' : 'activated'} successfully`);
+        setDeactivateDialogOpen(false);
+        setSelectedSpace(null);
+        fetchData();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || `Failed to ${newStatus === 'inactive' ? 'deactivate' : 'activate'} parking space`);
+      }
+    } catch (error) {
+      console.error("Error toggling space status:", error);
+      toast.error(`Failed to ${newStatus === 'inactive' ? 'deactivate' : 'activate'} parking space`);
     }
   };
 
@@ -616,7 +646,7 @@ export default function AdminPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-3xl font-black mb-2">PARKING SLOT MANAGEMENT</h2>
-                <p className="text-muted-foreground">Manage and delete parking spaces</p>
+                <p className="text-muted-foreground">Manage, deactivate, and delete parking spaces</p>
               </div>
             </div>
 
@@ -673,17 +703,41 @@ export default function AdminPage() {
                         </div>
                       </div>
 
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedSpace(space);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Space
-                      </Button>
+                      <div className="flex gap-2">
+                        {space.status === 'active' ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedSpace(space);
+                              setDeactivateDialogOpen(true);
+                            }}
+                          >
+                            <PowerOff className="h-4 w-4 mr-2" />
+                            Deactivate Space
+                          </Button>
+                        ) : space.status === 'inactive' ? (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleToggleSpaceStatus(space, 'active')}
+                          >
+                            <Power className="h-4 w-4 mr-2" />
+                            Activate Space
+                          </Button>
+                        ) : null}
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedSpace(space);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Space
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </Card>
@@ -804,6 +858,41 @@ export default function AdminPage() {
             <Button variant="destructive" onClick={handleRejectPayment}>
               <XCircle className="h-4 w-4 mr-2" />
               Reject Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deactivate Space Dialog */}
+      <Dialog open={deactivateDialogOpen} onOpenChange={setDeactivateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Deactivate Parking Space</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to deactivate this parking space? It will no longer be visible to customers.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedSpace && (
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <PowerOff className="h-5 w-5 text-orange-500" />
+                <p className="font-semibold">Deactivation Notice</p>
+              </div>
+              <p className="text-sm">
+                <strong>{selectedSpace.name}</strong> will be hidden from customer searches. You can reactivate it anytime.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeactivateDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="default" 
+              onClick={() => selectedSpace && handleToggleSpaceStatus(selectedSpace, 'inactive')}
+            >
+              <PowerOff className="h-4 w-4 mr-2" />
+              Deactivate Space
             </Button>
           </DialogFooter>
         </DialogContent>

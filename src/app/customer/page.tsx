@@ -29,7 +29,8 @@ import {
   Loader2,
   AlertCircle,
   Upload,
-  CheckCircle2
+  CheckCircle2,
+  Locate
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "@/lib/auth-client";
@@ -72,6 +73,8 @@ export default function CustomerDashboard() {
   const [transactionId, setTransactionId] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingBookingId, setPendingBookingId] = useState<number | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -79,6 +82,57 @@ export default function CustomerDashboard() {
       router.push("/login?redirect=/customer");
     }
   }, [session, isPending, router]);
+
+  // Calculate distance between two coordinates (Haversine formula)
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371; // Radius of Earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  // Get user's current location
+  const locateUser = () => {
+    setIsLocating(true);
+    
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      setIsLocating(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation({ lat: latitude, lng: longitude });
+        toast.success("Location detected! Showing nearby parking spaces");
+        
+        // Update spaces with distance
+        const updatedSpaces = spaces.map(space => {
+          if (space.latitude && space.longitude) {
+            const distance = calculateDistance(latitude, longitude, space.latitude, space.longitude);
+            return { ...space, distance };
+          }
+          return space;
+        });
+        
+        // Sort by distance
+        updatedSpaces.sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
+        setSpaces(updatedSpaces);
+        setIsLocating(false);
+      },
+      (error) => {
+        console.error("Error getting location:", error);
+        toast.error("Unable to get your location. Please enable location services.");
+        setIsLocating(false);
+      }
+    );
+  };
 
   // Fetch parking spaces
   const fetchSpaces = async () => {
@@ -439,10 +493,40 @@ export default function CustomerDashboard() {
       
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Find Parking Spaces</h1>
-          <p className="text-muted-foreground">Search and book parking spaces across Karnataka</p>
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Find Parking Spaces</h1>
+            <p className="text-muted-foreground">Search and book parking spaces across Karnataka</p>
+          </div>
+          <Button
+            onClick={locateUser}
+            disabled={isLocating}
+            size="lg"
+            className="gap-2 font-bold"
+          >
+            <Locate className={`h-5 w-5 ${isLocating ? 'animate-pulse' : ''}`} />
+            {isLocating ? 'LOCATING...' : 'LOCATE ME'}
+          </Button>
         </div>
+
+        {/* Location Status */}
+        {userLocation && (
+          <Card className="mb-8 bg-primary/5 border-primary">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <MapPin className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold">Location Detected</p>
+                  <p className="text-sm text-muted-foreground">
+                    Showing parking spaces near you (sorted by distance)
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Wallet & Achievements Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -497,6 +581,7 @@ export default function CustomerDashboard() {
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
                 Found {filteredSpaces.length} parking spaces
+                {userLocation && " • Sorted by distance"}
               </p>
               <Button variant="outline" size="sm">
                 <Filter className="mr-2 h-4 w-4" />
@@ -528,6 +613,11 @@ export default function CustomerDashboard() {
                       <Badge className="absolute top-3 right-3 bg-background/90">
                         {space.availableSpots || 0} spots left
                       </Badge>
+                      {space.distance !== undefined && (
+                        <Badge className="absolute top-3 left-3 bg-primary">
+                          {space.distance.toFixed(1)} km away
+                        </Badge>
+                      )}
                     </div>
                     <CardHeader>
                       <div className="flex items-start justify-between">
@@ -546,9 +636,6 @@ export default function CustomerDashboard() {
                           <span className="text-sm font-medium">{space.rating || 0}</span>
                           <span className="text-xs text-muted-foreground">({space.reviews || 0})</span>
                         </div>
-                        {space.distance && (
-                          <span className="text-xs text-muted-foreground">• {space.distance} away</span>
-                        )}
                       </div>
 
                       <div className="flex flex-wrap gap-2 mt-3">
