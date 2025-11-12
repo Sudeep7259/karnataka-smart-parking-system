@@ -16,45 +16,49 @@ const userIcon = new L.Icon({
   popupAnchor: [0, -16]
 });
 
-// Available parking (green) - plenty of spots
-const availableIcon = new L.Icon({
-  iconUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjMjJjNTVlIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjEuNSI+PHBhdGggZD0iTTIxIDEwYzAgNy05IDEzLTkgMTNzLTktNi05LTEzYTkgOSAwIDAgMCAxOCAwWiIvPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTAiIHI9IjMiIGZpbGw9IndoaXRlIi8+PC9zdmc+",
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],
-  popupAnchor: [0, -32]
-});
+// Create custom marker with symbol
+function createSymbolMarker(bgColor: string, symbol: string, textColor: string = "white", borderColor: string = "black"): L.Icon {
+  return new L.Icon({
+    iconUrl: `data:image/svg+xml;base64,${btoa(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="40" height="48" viewBox="0 0 40 48">
+        <path d="M20 0c-11 0-20 9-20 20 0 11 20 28 20 28s20-17 20-28c0-11-9-20-20-20z" 
+              fill="${bgColor}" 
+              stroke="${borderColor}" 
+              stroke-width="3"/>
+        <text x="20" y="26" 
+              text-anchor="middle" 
+              font-family="Arial Black, Impact, sans-serif" 
+              font-size="16" 
+              font-weight="900" 
+              fill="${textColor}" 
+              stroke="${borderColor}" 
+              stroke-width="0.5">${symbol}</text>
+      </svg>
+    `)}`,
+    iconSize: [40, 48],
+    iconAnchor: [20, 48],
+    popupAnchor: [0, -48]
+  });
+}
 
-// Limited availability (orange) - few spots left
-const limitedIcon = new L.Icon({
-  iconUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjZjk3MzE2IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjEuNSI+PHBhdGggZD0iTTIxIDEwYzAgNy05IDEzLTkgMTNzLTktNi05LTEzYTkgOSAwIDAgMCAxOCAwWiIvPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTAiIHI9IjMiIGZpbGw9IndoaXRlIi8+PC9zdmc+",
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],
-  popupAnchor: [0, -32]
-});
+// Symbol-based markers for different parking types
+const carIcon = createSymbolMarker("#22c55e", "🚗", "white", "black");
+const bikeIcon = createSymbolMarker("#3b82f6", "🏍️", "white", "black");
+const truckIcon = createSymbolMarker("#8b5cf6", "🚚", "white", "black");
+const evIcon = createSymbolMarker("#10b981", "⚡", "yellow", "black");
+const coveredIcon = createSymbolMarker("#f59e0b", "🏠", "white", "black");
+const valetIcon = createSymbolMarker("#fbbf24", "👔", "black", "black");
+const disabledIcon = createSymbolMarker("#06b6d4", "♿", "white", "black");
+const securityIcon = createSymbolMarker("#64748b", "🛡️", "white", "black");
 
-// Fully booked (red) - no spots available
-const bookedIcon = new L.Icon({
-  iconUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjZWYzNDRhIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjEuNSI+PHBhdGggZD0iTTIxIDEwYzAgNy05IDEzLTkgMTNzLTktNi05LTEzYTkgOSAwIDAgMCAxOCAwWiIvPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTAiIHI9IjMiIGZpbGw9IndoaXRlIi8+PC9zdmc+",
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],
-  popupAnchor: [0, -32]
-});
+// Status-based markers with letters
+const availableIconA = createSymbolMarker("#22c55e", "A", "white", "black");
+const limitedIconL = createSymbolMarker("#f97316", "L", "white", "black");
+const bookedIconF = createSymbolMarker("#ef4444", "F", "white", "black");
+const premiumIconP = createSymbolMarker("#ffd700", "P", "black", "black");
 
-// Premium parking (gold/purple) - special features
-const premiumIcon = new L.Icon({
-  iconUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzNiIgaGVpZ2h0PSIzNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjZmZkNzAwIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMS41Ij48cGF0aCBkPSJNMjEgMTBjMCA3LTkgMTMtOSAxM3MtOS02LTktMTNhOSA5IDAgMCAwIDE4IDBaIi8+PHBhdGggZD0iTTEyIDdhMyAzIDAgMCAxIDMgM3YzYTMgMyAwIDAgMS02IDBWMTBhMyAzIDAgMCAxIDMtM1oiIGZpbGw9IiMwMDAiLz48L3N2Zz4=",
-  iconSize: [36, 36],
-  iconAnchor: [18, 36],
-  popupAnchor: [0, -36]
-});
-
-// Selected/highlighted (larger green)
-const selectedIcon = new L.Icon({
-  iconUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjMjJjNTVlIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiPjxwYXRoIGQ9Ik0yMSAxMGMwIDctOSAxMy05IDEzczktNiA5LTEzYTkgOSAwIDAgMC0xOCAwYzAgNyA5IDEzIDkgMTNzOS02IDktMTNaIi8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMCIgcj0iNCIgZmlsbD0id2hpdGUiLz48L3N2Zz4=",
-  iconSize: [40, 40],
-  iconAnchor: [20, 40],
-  popupAnchor: [0, -40]
-});
+// Selected/highlighted
+const selectedIcon = createSymbolMarker("#22c55e", "★", "yellow", "white");
 
 interface ParkingSpace {
   id: number;
@@ -114,24 +118,53 @@ function getParkingStatus(space: ParkingSpace): 'available' | 'limited' | 'booke
   return 'available';
 }
 
-// Get the appropriate icon based on status
+// Get the appropriate icon based on features and status
 function getIconForSpace(space: ParkingSpace, isSelected: boolean): L.Icon {
   if (isSelected) {
     return selectedIcon;
   }
   
+  const features = space.features?.map(f => f.toLowerCase()) || [];
+  
+  // Priority order for feature-based icons
+  if (features.some(f => f.includes('valet'))) {
+    return valetIcon;
+  }
+  if (features.some(f => f.includes('ev charging') || f.includes('electric'))) {
+    return evIcon;
+  }
+  if (features.some(f => f.includes('covered') || f.includes('indoor'))) {
+    return coveredIcon;
+  }
+  if (features.some(f => f.includes('disabled') || f.includes('handicap') || f.includes('wheelchair'))) {
+    return disabledIcon;
+  }
+  if (features.some(f => f.includes('security') || f.includes('cctv') || f.includes('guard'))) {
+    return securityIcon;
+  }
+  if (features.some(f => f.includes('truck') || f.includes('heavy vehicle'))) {
+    return truckIcon;
+  }
+  if (features.some(f => f.includes('bike') || f.includes('motorcycle') || f.includes('two wheeler'))) {
+    return bikeIcon;
+  }
+  if (features.some(f => f.includes('car') || f.includes('four wheeler'))) {
+    return carIcon;
+  }
+  
+  // Fall back to status-based icons with letters
   const status = getParkingStatus(space);
   
   switch (status) {
     case 'premium':
-      return premiumIcon;
+      return premiumIconP;
     case 'booked':
-      return bookedIcon;
+      return bookedIconF;
     case 'limited':
-      return limitedIcon;
+      return limitedIconL;
     case 'available':
     default:
-      return availableIcon;
+      return availableIconA;
   }
 }
 
@@ -141,14 +174,14 @@ function getStatusBadge(space: ParkingSpace) {
   
   switch (status) {
     case 'premium':
-      return <Badge className="bg-yellow-500 text-black"><Zap className="h-3 w-3 mr-1" />Premium</Badge>;
+      return <Badge className="bg-yellow-500 text-black border-2 border-black dark:border-white font-bold"><Zap className="h-3 w-3 mr-1" />PREMIUM</Badge>;
     case 'booked':
-      return <Badge variant="destructive">Fully Booked</Badge>;
+      return <Badge variant="destructive" className="border-2 border-black dark:border-white font-bold">FULL</Badge>;
     case 'limited':
-      return <Badge className="bg-orange-500"><AlertTriangle className="h-3 w-3 mr-1" />Limited</Badge>;
+      return <Badge className="bg-orange-500 border-2 border-black dark:border-white font-bold"><AlertTriangle className="h-3 w-3 mr-1" />LIMITED</Badge>;
     case 'available':
     default:
-      return <Badge className="bg-green-600">Available</Badge>;
+      return <Badge className="bg-green-600 border-2 border-black dark:border-white font-bold">AVAILABLE</Badge>;
   }
 }
 
@@ -221,42 +254,41 @@ export default function MapView({ userLocation, parkingSpaces, selectedSpace, on
               }}
             >
               <Popup>
-                <div className="min-w-[200px] p-2">
+                <div className="min-w-[220px] p-2">
                   <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-semibold text-base flex-1">{space.name}</h3>
+                    <h3 className="font-bold text-base flex-1 uppercase">{space.name}</h3>
                     {getStatusBadge(space)}
                   </div>
                   
-                  <p className="text-xs text-muted-foreground mb-3 flex items-start gap-1">
+                  <p className="text-xs text-muted-foreground mb-3 flex items-start gap-1 font-medium">
                     <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
                     <span>{space.address}</span>
                   </p>
                   
                   <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
                     <div>
-                      <div className="text-xs text-muted-foreground">Available</div>
-                      <div className={`font-semibold ${space.availableSpots === 0 ? 'text-red-600' : space.availableSpots <= (space.totalSpots * 0.2) ? 'text-orange-600' : 'text-green-600'}`}>
+                      <div className="text-xs text-muted-foreground font-bold uppercase">Available</div>
+                      <div className={`font-black text-lg ${space.availableSpots === 0 ? 'text-red-600' : space.availableSpots <= (space.totalSpots * 0.2) ? 'text-orange-600' : 'text-green-600'}`}>
                         {space.availableSpots}/{space.totalSpots}
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-muted-foreground">Price</div>
-                      <div className="font-semibold">₹{space.price}/hr</div>
+                      <div className="text-xs text-muted-foreground font-bold uppercase">Price</div>
+                      <div className="font-black text-lg">₹{space.price}/hr</div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 mb-3 text-xs">
-                    <div className="flex items-center gap-1">
-                      <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                      <span>{space.rating.toFixed(1)}</span>
-                    </div>
-                    <span className="text-muted-foreground">
-                      ({space.reviews} reviews)
+                  <div className="flex items-center gap-2 mb-3 text-xs bg-yellow-400 px-2 py-1 border-2 border-black dark:border-white w-fit">
+                    <Star className="h-3 w-3 fill-black text-black" />
+                    <span className="font-bold text-black">{space.rating.toFixed(1)}</span>
+                    <span className="font-medium text-black">
+                      ({space.reviews})
                     </span>
                   </div>
 
                   {space.distance !== undefined && (
-                    <p className="text-xs text-muted-foreground mb-3">
+                    <p className="text-xs font-bold mb-3 flex items-center gap-1">
+                      <Zap className="h-3 w-3" />
                       {space.distance.toFixed(1)} km away
                     </p>
                   )}
@@ -264,16 +296,21 @@ export default function MapView({ userLocation, parkingSpaces, selectedSpace, on
                   {space.features && space.features.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-3">
                       {space.features.slice(0, 3).map((feature, idx) => (
-                        <Badge key={idx} variant="secondary" className="text-xs">
+                        <Badge key={idx} variant="outline" className="text-xs font-bold border-2 uppercase">
                           {feature}
                         </Badge>
                       ))}
+                      {space.features.length > 3 && (
+                        <Badge variant="outline" className="text-xs font-bold border-2">
+                          +{space.features.length - 3}
+                        </Badge>
+                      )}
                     </div>
                   )}
 
                   <Button
                     size="sm"
-                    className="w-full"
+                    className="w-full border-2 border-black dark:border-white font-bold uppercase"
                     onClick={() => navigateToSpace(space)}
                   >
                     <NavigationIcon className="h-4 w-4 mr-1" />
@@ -287,38 +324,91 @@ export default function MapView({ userLocation, parkingSpaces, selectedSpace, on
       </MapContainer>
 
       {/* Map Legend */}
-      <div className="absolute bottom-4 right-4 bg-white dark:bg-black border-2 border-black dark:border-white p-4 rounded-lg shadow-lg z-[1000] manga-panel">
-        <h4 className="font-bold text-sm mb-3 uppercase">Map Legend</h4>
-        <div className="space-y-2 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-green-600 border-2 border-white flex items-center justify-center">
-              <div className="w-2 h-2 bg-white rounded-full"></div>
+      <div className="absolute bottom-4 right-4 bg-white dark:bg-black border-4 border-black dark:border-white p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] z-[1000]">
+        <h4 className="font-black text-sm mb-3 uppercase border-b-2 border-black dark:border-white pb-2">Map Legend</h4>
+        
+        <div className="space-y-3">
+          {/* Feature-Based Symbols */}
+          <div>
+            <p className="text-xs font-black uppercase mb-2 text-muted-foreground">Features</p>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-8 flex items-center justify-center text-lg">⚡</div>
+                <span className="font-bold">EV Charging</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-8 flex items-center justify-center text-lg">🏠</div>
+                <span className="font-bold">Covered Parking</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-8 flex items-center justify-center text-lg">👔</div>
+                <span className="font-bold">Valet Service</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-8 flex items-center justify-center text-lg">♿</div>
+                <span className="font-bold">Disabled Access</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-8 flex items-center justify-center text-lg">🛡️</div>
+                <span className="font-bold">Security/CCTV</span>
+              </div>
             </div>
-            <span className="font-medium">Available (20%+ spots)</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-orange-500 border-2 border-white flex items-center justify-center">
-              <div className="w-2 h-2 bg-white rounded-full"></div>
+
+          {/* Vehicle Types */}
+          <div className="pt-3 border-t-2 border-black dark:border-white">
+            <p className="text-xs font-black uppercase mb-2 text-muted-foreground">Vehicle Types</p>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-8 flex items-center justify-center text-lg">🚗</div>
+                <span className="font-bold">Car Parking</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-8 flex items-center justify-center text-lg">🏍️</div>
+                <span className="font-bold">Bike Parking</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-8 flex items-center justify-center text-lg">🚚</div>
+                <span className="font-bold">Truck Parking</span>
+              </div>
             </div>
-            <span className="font-medium">Limited (&lt;20% spots)</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-red-600 border-2 border-white flex items-center justify-center">
-              <div className="w-2 h-2 bg-white rounded-full"></div>
+
+          {/* Status Indicators */}
+          <div className="pt-3 border-t-2 border-black dark:border-white">
+            <p className="text-xs font-black uppercase mb-2 text-muted-foreground">Availability</p>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-8 rounded-full bg-green-600 border-2 border-black dark:border-white flex items-center justify-center font-black text-white text-sm">A</div>
+                <span className="font-bold">Available (20%+)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-8 rounded-full bg-orange-500 border-2 border-black dark:border-white flex items-center justify-center font-black text-white text-sm">L</div>
+                <span className="font-bold">Limited (&lt;20%)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-8 rounded-full bg-red-600 border-2 border-black dark:border-white flex items-center justify-center font-black text-white text-sm">F</div>
+                <span className="font-bold">Full</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-8 rounded-full bg-yellow-500 border-2 border-black flex items-center justify-center font-black text-black text-sm">P</div>
+                <span className="font-bold">Premium</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-8 rounded-full bg-green-600 border-2 border-white flex items-center justify-center text-lg">★</div>
+                <span className="font-bold">Selected</span>
+              </div>
             </div>
-            <span className="font-medium">Fully Booked</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-yellow-500 border-2 border-black flex items-center justify-center">
-              <Zap className="w-3 h-3 text-black" />
+
+          {/* User Location */}
+          <div className="pt-3 border-t-2 border-black dark:border-white">
+            <div className="flex items-center gap-2 text-xs">
+              <div className="w-7 h-8 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center">
+                <div className="w-2 h-2 bg-white rounded-full"></div>
+              </div>
+              <span className="font-bold">Your Location</span>
             </div>
-            <span className="font-medium">Premium Parking</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center">
-              <div className="w-2 h-2 bg-white rounded-full"></div>
-            </div>
-            <span className="font-medium">Your Location</span>
           </div>
         </div>
       </div>
