@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,30 +10,48 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Shield, Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
-// Hardcoded admin password
-const ADMIN_PASSWORD = "Admin@2025#Secure";
-
 export default function AdminLoginPage() {
   const router = useRouter();
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simple password check
-    if (password === ADMIN_PASSWORD) {
-      // Store admin session in localStorage
+    try {
+      // Use better-auth to sign in
+      const { data, error } = await authClient.signIn.email({
+        email,
+        password,
+      });
+
+      if (error?.code) {
+        toast.error("Invalid admin credentials. Please check your email and password.");
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if user has admin role
+      if (data?.user?.role !== 'admin') {
+        toast.error("Access denied. Admin role required.");
+        await authClient.signOut();
+        setIsLoading(false);
+        return;
+      }
+
+      // Store admin authentication flag for quick checks
       localStorage.setItem("admin_authenticated", "true");
       toast.success("Admin access granted");
       router.push("/admin");
-    } else {
-      toast.error("Invalid admin password");
+    } catch (error) {
+      console.error("Login error:", error);
+      toast.error("Failed to sign in. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   return (
@@ -45,12 +64,29 @@ export default function AdminLoginPage() {
           <div>
             <CardTitle className="text-2xl font-black">ADMIN ACCESS</CardTitle>
             <CardDescription className="text-base mt-2">
-              Enter the admin password to continue
+              Sign in with your admin credentials
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="font-bold">
+                Admin Email
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@parking.com"
+                required
+                disabled={isLoading}
+                className="border-2 border-black"
+                autoComplete="email"
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="password" className="font-bold">
                 Admin Password
@@ -92,7 +128,7 @@ export default function AdminLoginPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Verifying...
+                  Signing in...
                 </>
               ) : (
                 <>
@@ -103,9 +139,13 @@ export default function AdminLoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Admin Password: <span className="font-mono font-bold">Admin@2025#Secure</span>
+          <div className="mt-6 p-4 bg-muted rounded border-2 border-black">
+            <p className="text-xs font-bold mb-2">DEFAULT ADMIN CREDENTIALS:</p>
+            <p className="text-xs">
+              <span className="font-bold">Email:</span> <span className="font-mono">admin@parking.com</span>
+            </p>
+            <p className="text-xs">
+              <span className="font-bold">Password:</span> <span className="font-mono">Admin@2025#Secure</span>
             </p>
           </div>
         </CardContent>

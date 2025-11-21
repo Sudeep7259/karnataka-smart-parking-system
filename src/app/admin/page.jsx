@@ -45,8 +45,8 @@ import Image from "next/image";
 
 export default function AdminPage() {
   const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: session, isPending } = useSession();
+  const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [stats, setStats] = useState(null);
   const [bookings, setBookings] = useState([]);
@@ -61,18 +61,24 @@ export default function AdminPage() {
   const [screenshotDialogOpen, setScreenshotDialogOpen] = useState(false);
   const [selectedScreenshot, setSelectedScreenshot] = useState("");
 
-  // Check admin authentication
+  // Check admin authentication using session
   useEffect(() => {
-    const adminAuth = localStorage.getItem("admin_authenticated");
-    if (adminAuth === "true") {
-      setIsAuthenticated(true);
-      fetchData();
-    } else {
-      toast.error("Admin authentication required");
+    if (!isPending && !session) {
       router.push("/admin/login");
+      return;
     }
-    setIsLoading(false);
-  }, [router]);
+
+    if (!isPending && session?.user?.role !== 'admin') {
+      toast.error("Access denied. Admin role required.");
+      router.push("/admin/login");
+      return;
+    }
+
+    if (!isPending && session?.user?.role === 'admin') {
+      localStorage.setItem("admin_authenticated", "true");
+      fetchData();
+    }
+  }, [session, isPending, router]);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -110,10 +116,15 @@ export default function AdminPage() {
     }
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     localStorage.removeItem("admin_authenticated");
-    router.push("/admin/login");
-    toast.success("Signed out successfully");
+    const { error } = await authClient.signOut();
+    if (error?.code) {
+      toast.error("Failed to sign out");
+    } else {
+      toast.success("Signed out successfully");
+      router.push("/admin/login");
+    }
   };
 
   const handleApprovePayment = async (bookingId) => {
@@ -237,7 +248,7 @@ export default function AdminPage() {
     space.city.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -245,7 +256,7 @@ export default function AdminPage() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!session || session.user.role !== 'admin') {
     return null;
   }
 
