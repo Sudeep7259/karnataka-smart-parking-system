@@ -6,7 +6,7 @@ import { auth } from '@/lib/auth';
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authentication check
@@ -33,8 +33,8 @@ export async function DELETE(
       );
     }
 
-    // Extract and validate ID parameter
-    const { id } = context.params;
+    // Extract and validate ID parameter - await params in Next.js 15
+    const { id } = await context.params;
     
     if (!id) {
       return NextResponse.json(
@@ -103,7 +103,7 @@ export async function DELETE(
 
 export async function PATCH(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authentication check
@@ -130,8 +130,8 @@ export async function PATCH(
       );
     }
 
-    // Extract and validate ID parameter
-    const { id } = context.params;
+    // Extract and validate ID parameter - await params in Next.js 15
+    const { id } = await context.params;
     
     if (!id) {
       return NextResponse.json(

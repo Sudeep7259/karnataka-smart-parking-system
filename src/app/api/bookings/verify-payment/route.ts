@@ -6,10 +6,13 @@ import { eq } from 'drizzle-orm';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { booking_id } = body;
+    const { bookingId, booking_id } = body;
+
+    // Accept both bookingId and booking_id for compatibility
+    const id = bookingId || booking_id;
 
     // Validation: booking_id is required
-    if (!booking_id) {
+    if (!id) {
       return NextResponse.json(
         { 
           error: 'Booking ID is required',
@@ -20,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validation: booking_id must be a valid integer
-    const bookingIdInt = parseInt(booking_id);
+    const bookingIdInt = parseInt(id);
     if (isNaN(bookingIdInt)) {
       return NextResponse.json(
         { 
