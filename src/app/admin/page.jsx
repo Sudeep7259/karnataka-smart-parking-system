@@ -167,8 +167,8 @@ export default function AdminPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          bookingId: selectedBooking.id,
-          reason: rejectReason,
+          booking_id: selectedBooking.id,
+          rejection_reason: rejectReason,
         }),
       });
 
