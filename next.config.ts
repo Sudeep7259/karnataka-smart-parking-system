@@ -17,6 +17,13 @@ const nextConfig: NextConfig = {
     ],
   },
   outputFileTracingRoot: path.resolve(__dirname, '../../'),
+  // Allow cross-origin requests from Orchids published domains
+  allowedDevOrigins: [
+    'www.orchids.app',
+    'orchids.app',
+    '*.orchids.app',
+    '*.proxy.daytona.works',
+  ],
   turbopack: {
     rules: {
       "*.{jsx,tsx}": {
